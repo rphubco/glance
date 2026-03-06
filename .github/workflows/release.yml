@@ -1,0 +1,64 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      DALAMUD_HOME: /tmp/dalamud
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download Dalamud
+        run: |
+          mkdir -p $DALAMUD_HOME
+          curl -L https://goatcorp.github.io/dalamud-distrib/stg/latest.zip -o /tmp/dalamud.zip
+          unzip /tmp/dalamud.zip -d $DALAMUD_HOME
+
+      - name: Build
+        run: dotnet build -c Release
+
+      - name: Package
+        run: |
+          cd bin/Release/win-x64
+          zip -r latest.zip *.dll *.json *.pdb
+
+      - name: Extract version
+        id: version
+        run: |
+          VERSION=$(grep -oP '<Version>\K[^<]+' Glance.csproj)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Prepare Branch
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git fetch origin master
+          git checkout master
+
+      - name: Update pluginmaster.json
+        run: |
+          sed -i "s/\"AssemblyVersion\": \"[^\"]*\"/\"AssemblyVersion\": \"${{ steps.version.outputs.version }}\"/" pluginmaster.json
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: bin/Release/win-x64/latest.zip
+
+      - name: Commit pluginmaster.json
+        run: |
+          git add pluginmaster.json
+          git diff --cached --quiet || git commit -m "Update pluginmaster.json to ${{ steps.version.outputs.version }}"
+          git push origin master

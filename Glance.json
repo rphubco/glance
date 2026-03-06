@@ -1,0 +1,20 @@
+{
+    "Name": "Glance",
+    "InternalName": "Glance",
+    "Author": "hanabi // RPHub.co",
+    "Punchline": "View FFXIV roleplay profiles in-game.",
+    "Description": "Displays RPHub character profiles when targeting other players. Connect your RPHub.co account to share your roleplay profile with others.",
+    "RepoUrl": "https://github.com/rphubco/glance",
+    "ApplicableVersion": "any",
+    "DalamudApiLevel": 14,
+    "AssemblyVersion": "1.0.0.0",
+    "IconUrl": "https://raw.githubusercontent.com/rphubco/glance/master/icon.png",
+    "DownloadLinkInstall": "https://github.com/rphubco/glance/releases/latest/download/latest.zip",
+    "Tags": [
+        "rp",
+        "roleplay",
+        "profile",
+        "social",
+        "rphub"
+    ]
+}

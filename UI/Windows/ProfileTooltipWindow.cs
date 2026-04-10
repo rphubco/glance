@@ -78,8 +78,15 @@ public sealed class ProfileTooltipWindow : Window
 
     public void Show(string name, string world, bool showGlance = false, bool startFetch = true, bool updateMain = false)
     {
+        var cachedCheck = Globals.Cache.GetProfile(name, world);
+        if (cachedCheck != null && Globals.Mutes.IsMuted(cachedCheck.Id.ToString()))
+        {
+            Hide();
+            return;
+        }
+
         _showGlance = showGlance;
-        var cached = Globals.Cache.GetProfile(name, world);
+        var cached = cachedCheck;
         var stale = Globals.Cache.IsStaleNeighbor(name, world);
         var same = _name == name && _world == world;
         var hasData = _data != null || _notFound;
@@ -232,6 +239,8 @@ public sealed class ProfileTooltipWindow : Window
     public override void Draw()
     {
         Theme.DrawFrame(Theme.CornerAccentSizeLarge);
+
+        if (Globals.Mutes.IsMuted(_profileId)) { Hide(); return; }
 
         if (_loading) { DrawHeader(); DrawCentered("Loading...", Theme.LabelColor); DrawVersion(); return; }
 
@@ -463,6 +472,32 @@ public sealed class ProfileTooltipWindow : Window
             }
             if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open full profile view");
             ImGui.PopStyleColor(3);
+
+            var lpMute = Globals.Objects.LocalPlayer;
+            var isSelfMute = lpMute != null && _name == lpMute.Name.TextValue && _world == lpMute.HomeWorld.Value.Name.ExtractText();
+            if (!isSelfMute && _profileId != null && int.TryParse(_profileId, out var muteCharId))
+            {
+                var isMuted = Globals.Mutes.IsMuted(muteCharId);
+                ImGui.SameLine(0, 4);
+                ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f });
+                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, isMuted ? Theme.Success with { W = 0.4f } : Theme.Error with { W = 0.4f });
+                ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
+                if (ImGui.SmallButton(isMuted ? "Unmute" : "Mute"))
+                {
+                    var cid = muteCharId;
+                    if (isMuted)
+                        Task.Run(() => Globals.Mutes.UnmuteAsync(cid));
+                    else
+                    {
+                        var muteName = _data?.Name ?? _name;
+                        Task.Run(() => Globals.Mutes.MuteAsync(cid, muteName));
+                        Hide();
+                    }
+                    Sound.PlayClick();
+                }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip(isMuted ? "Unhide this character" : "You will no longer see this profile.\nTo unmute, check Glance settings.");
+                ImGui.PopStyleColor(3);
+            }
         }
         else if (_refreshing) ImGui.TextColored(Theme.LabelColorDim, "Refreshing...");
 

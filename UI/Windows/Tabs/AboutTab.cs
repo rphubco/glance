@@ -28,13 +28,17 @@ public static class AboutTab
     {
         UI.Space(UI.Md);
 
-        var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
-        if (icon.TryGetWrap(out var wrap, out _))
+        try
         {
-            var imgSize = new Vector2(48, 48);
-            ImGui.SetCursorPosX((w - imgSize.X) / 2);
-            ImGui.Image(wrap.Handle, imgSize);
+            var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
+            if (icon.TryGetWrap(out var wrap, out _))
+            {
+                var imgSize = new Vector2(48, 48);
+                ImGui.SetCursorPosX((w - imgSize.X) / 2);
+                ImGui.Image(wrap.Handle, imgSize);
+            }
         }
+        catch { }
 
         UI.Space(UI.Sm);
         using (Globals.Fonts.Title.Push()) Theme.Centered("Glance", Theme.GoldColor);

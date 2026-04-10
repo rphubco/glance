@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using System.Threading.Tasks;
 
 public static class ProfileTab
 {
@@ -248,6 +249,20 @@ public static class ProfileTab
         bx -= 28;
         if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Sync, "Refresh")) Refresh(name, world);
         if (canEdit) { bx -= 28; if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Edit, "Edit Profile")) ProfileEditor.OpenForEdit(data, profileId); }
+        if (!canEdit && profileId != null && int.TryParse(profileId, out var muteId))
+        {
+            bx -= 28;
+            var isMuted = Globals.Mutes.IsMuted(muteId);
+            if (IconBtn(dl, new Vector2(bx, p.Y + pad), isMuted ? FontAwesomeIcon.VolumeUp : FontAwesomeIcon.VolumeMute, isMuted ? "Unmute Character" : "You will no longer see this profile.\nTo unmute, check Glance settings."))
+            {
+                var cid = muteId;
+                if (isMuted)
+                    Task.Run(() => Globals.Mutes.UnmuteAsync(cid));
+                else
+                    Task.Run(() => Globals.Mutes.MuteAsync(cid, data?.Name));
+                Sound.PlayClick();
+            }
+        }
         if (!canEdit && profileId != null)
         {
             bx -= 28;
@@ -280,12 +295,16 @@ public static class ProfileTab
             {
                 var g = glances[i];
 
-                var tex = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(g.IconId));
-                if (tex.TryGetWrap(out var wrap, out _))
+                try
                 {
-                    var iconSz = new Vector2(boxSize - 4);
-                    dl.AddImage(wrap.Handle, pos + new Vector2(2), pos + new Vector2(2) + iconSz);
+                    var tex = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(g.IconId));
+                    if (tex.TryGetWrap(out var wrap, out _))
+                    {
+                        var iconSz = new Vector2(boxSize - 4);
+                        dl.AddImage(wrap.Handle, pos + new Vector2(2), pos + new Vector2(2) + iconSz);
+                    }
                 }
+                catch { }
 
                 ImGui.SetCursorScreenPos(pos);
                 ImGui.InvisibleButton($"##glance{i}", new Vector2(boxSize));

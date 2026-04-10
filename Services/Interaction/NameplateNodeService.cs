@@ -91,7 +91,6 @@ public sealed unsafe class NameplateNodeService : IDisposable
     public void Dispose()
     {
         Globals.AddonLifecycle.UnregisterListener(AddonEvent.PreDraw, "NamePlate", OnDraw);
-        ResetColors();
     }
 
     static void ApplyColor(AtkImageNode* node, Vector4 c)
@@ -112,19 +111,5 @@ public sealed unsafe class NameplateNodeService : IDisposable
         node->AtkResNode.AddRed = 0;
         node->AtkResNode.AddGreen = 0;
         node->AtkResNode.AddBlue = 0;
-    }
-
-    void ResetColors()
-    {
-        if (_addon == null) return;
-        try
-        {
-            for (int i = 0; i < AddonNamePlate.NumNamePlateObjects; i++)
-            {
-                var node = _addon->NamePlateObjectArray[i].NameIcon;
-                if (node != null) ResetColor(node);
-            }
-        }
-        catch { }
     }
 }

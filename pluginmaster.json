@@ -3,7 +3,7 @@
     "Author": "RPHub.co",
     "Name": "Glance",
     "InternalName": "Glance",
-    "AssemblyVersion": "1.2.3",
+    "AssemblyVersion": "1.2.4",
     "Description": "Displays RPHub character profiles when targeting other players. Connect your RPHub.co account to share your roleplay profile with others.",
     "ApplicableVersion": "any",
     "RepoUrl": "https://github.com/rphubco/glance",

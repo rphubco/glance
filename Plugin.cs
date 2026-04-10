@@ -83,6 +83,7 @@ public sealed class Plugin : IDalamudPlugin
         Globals.Framework.Update += OnTick;
         Globals.Toolbox.IsOpen = true;
         _ = Globals.Auth.RevalidateAsync();
+        _ = Globals.Mutes.FetchAsync();
     }
 
     private void OnOpenConfigUi() => OnOpenMainUi();
@@ -132,6 +133,7 @@ public sealed class Plugin : IDalamudPlugin
 
         Task.Run(async () => {
             await Globals.Auth.RevalidateAsync();
+            _ = Globals.Mutes.FetchAsync();
             if (Globals.Profiles.Data?.Characters == null || Globals.Profiles.Data.Characters.Length == 0)
             {
                 await Task.Delay(3000);
@@ -246,9 +248,17 @@ public sealed class Plugin : IDalamudPlugin
             {
                 var hasHard = hard != null;
                 var isActiveHard = active == hard && hasHard;
-                if (hasHard && !_lastHadHardTarget) Globals.Tooltip.ShowGlance();
+                if (hasHard && !_lastHadHardTarget)
+                {
+                    if (Globals.Config.DisableTooltip)
+                    {
+                        var cached = Globals.Cache.GetProfile(name, world);
+                        Globals.GlanceWindow.Show(name, world, cached?.Data, cached?.Id.ToString());
+                    }
+                    else Globals.Tooltip.ShowGlance();
+                }
                 else if (!hasHard && _lastHadHardTarget) Globals.GlanceWindow.Hide();
-                if (isActiveHard && !_lastActiveWasHard) Globals.Tooltip.OnBecameHardTarget();
+                if (isActiveHard && !_lastActiveWasHard && !Globals.Config.DisableTooltip) Globals.Tooltip.OnBecameHardTarget();
                 _lastHadHardTarget = hasHard;
                 _lastActiveWasHard = isActiveHard;
                 if (fetchNow) Globals.Tooltip.EnsureLoaded();
@@ -258,7 +268,14 @@ public sealed class Plugin : IDalamudPlugin
             _hideAt = null;
             _lastHadHardTarget = hard != null;
             _lastActiveWasHard = active == hard && hard != null;
-            Globals.Tooltip.Show(name, world, hard != null, fetchNow, updateMain: active == hard && hard != null);
+            if (Globals.Config.DisableTooltip)
+            {
+                var cached = Globals.Cache.GetProfile(name, world);
+                if (hard != null) Globals.GlanceWindow.Show(name, world, cached?.Data, cached?.Id.ToString());
+                if (fetchNow) Globals.Tooltip.EnsureLoaded();
+            }
+            else
+                Globals.Tooltip.Show(name, world, hard != null, fetchNow, updateMain: active == hard && hard != null);
         }
         else
         {

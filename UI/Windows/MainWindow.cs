@@ -268,12 +268,16 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
     {
         var startPos = ImGui.GetCursorScreenPos();
         var startY = ImGui.GetCursorScreenPos().Y;
-        var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
-        if (icon.TryGetWrap(out var wrap, out _))
+        try
         {
-            ImGui.Image(wrap.Handle, new Vector2(36, 36));
-            ImGui.SameLine();
+            var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
+            if (icon.TryGetWrap(out var wrap, out _))
+            {
+                ImGui.Image(wrap.Handle, new Vector2(36, 36));
+                ImGui.SameLine();
+            }
         }
+        catch { }
 
         ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, startY));
         ImGui.BeginGroup();
@@ -445,12 +449,16 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
     void DrawLogo(float centerX)
     {
-        var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
-        if (icon.TryGetWrap(out var wrap, out _))
+        try
         {
-            ImGui.SetCursorPosX(centerX - 38);
-            ImGui.Image(wrap.Handle, new Vector2(56, 56));
+            var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
+            if (icon.TryGetWrap(out var wrap, out _))
+            {
+                ImGui.SetCursorPosX(centerX - 38);
+                ImGui.Image(wrap.Handle, new Vector2(56, 56));
+            }
         }
+        catch { }
 
         UI.Space(16);
         ImGui.SetWindowFontScale(1.4f);

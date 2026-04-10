@@ -52,6 +52,7 @@ public sealed class Globals
     public static MainWindow MainWindow { get; private set; } = null!;
     public static FontManager Fonts { get; private set; } = null!;
     public static NotesService Notes { get; private set; } = null!;
+    public static MuteService Mutes { get; private set; } = null!;
     public static ChatReplaceService ChatReplace { get; private set; } = null!;
     public static ReportWindow ReportWindow { get; private set; } = null!;
     public static NameplateNodeService NameplateNodes { get; private set; } = null!;
@@ -111,6 +112,7 @@ public sealed class Globals
         ChatReplace = new();
         MainWindow = new();
         Notes = new();
+        Mutes = new();
         NameplateNodes = new();
     }
 

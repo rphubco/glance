@@ -234,6 +234,13 @@ public static class SettingsTab
         }
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Tooltip will only appear when you click a player (hard target), not when hovering over them.");
 
+        var disableTooltip = config.DisableTooltip;
+        if (ImGui.Checkbox("Compact mode (small window only)", ref disableTooltip))
+        {
+            config.DisableTooltip = disableTooltip; changed = true; Sound.PlayClick();
+        }
+        if (ImGui.IsItemHovered()) ImGui.SetTooltip("Hide the large profile tooltip. Only the small at-a-glance window will appear when clicking a player.");
+
         ImGui.Unindent();
         ImGui.Spacing();
 
@@ -304,6 +311,38 @@ public static class SettingsTab
             }
             ImGui.SameLine();
             if (ImGui.Button("Cancel")) { _confirmCacheClear = _confirmImageCacheClear = false; Sound.PlayCancel(); }
+        }
+
+        ImGui.Spacing();
+        ImGui.Separator();
+        ImGui.Spacing();
+
+        UI.Section("Muted Characters");
+        ImGui.TextColored(Theme.LabelColor, "Muted characters are hidden from nearby, tooltips, and profile lookups.");
+        ImGui.Spacing();
+
+        var muted = Globals.Mutes.All;
+        if (muted.Count == 0)
+        {
+            ImGui.TextColored(Theme.TextMuted, "No muted characters.");
+        }
+        else
+        {
+            int? toUnmute = null;
+            foreach (var (id, name) in muted)
+            {
+                ImGui.PushID(id);
+                if (ImGui.SmallButton("Unmute")) toUnmute = id;
+                ImGui.SameLine();
+                ImGui.TextColored(Theme.LabelColor, name);
+                ImGui.PopID();
+            }
+
+            if (toUnmute is int uid)
+            {
+                Task.Run(() => Globals.Mutes.UnmuteAsync(uid));
+                Sound.PlayClick();
+            }
         }
 
         if (changed) config.Save();

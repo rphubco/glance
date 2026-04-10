@@ -158,6 +158,62 @@ public sealed class CacheService
 
     public CachedProfile? GetProfile(string name, string world) => _profiles.GetValueOrDefault($"{name}@{world}".ToLowerInvariant());
 
+    public async Task FetchBatchAsync(IEnumerable<(string Name, string World)> profiles)
+    {
+        var token = Globals.Auth.CurrentJwt;
+        if (string.IsNullOrEmpty(token)) return;
+
+        var toFetch = new List<(string Name, string World)>();
+        foreach (var (name, world) in profiles)
+        {
+            var k = $"{name}@{world}".ToLowerInvariant();
+            if (_fetching.ContainsKey(k)) continue;
+            if (_profiles.ContainsKey(k)) continue;
+            _fetching[k] = true;
+            toFetch.Add((name, world));
+        }
+
+        if (toFetch.Count == 0) return;
+
+        try
+        {
+            var payload = new { profiles = toFetch.Select(p => new { name = p.Name, world = p.World }).ToArray() };
+            using var req = new HttpRequestMessage(HttpMethod.Post, $"{BaseUrl}/batch")
+            {
+                Headers = { Authorization = new AuthenticationHeaderValue("Bearer", token) },
+                Content = new StringContent(JsonSerializer.Serialize(payload), System.Text.Encoding.UTF8, "application/json")
+            };
+
+            var res = await Globals.Http.SendAsync(req);
+            if (!res.IsSuccessStatusCode) return;
+
+            var batch = JsonSerializer.Deserialize<BatchLookupResponse>(await res.Content.ReadAsStringAsync(), Json);
+            if (batch?.Results == null) return;
+
+            foreach (var (pk, result) in batch.Results)
+            {
+                var k = pk.ToLowerInvariant();
+
+                if (result == null || result.Data == null)
+                {
+                    _profiles[k] = new CachedProfile(null, 0, null, DateTime.UtcNow, result?.Unverified == true);
+                    continue;
+                }
+
+                var profile = new CachedProfile(result.Id, result.Version, result.Data, DateTime.UtcNow, false);
+                _profiles[k] = profile;
+                _versionChecks[k] = DateTime.UtcNow;
+                SaveToDisk(k, profile);
+            }
+        }
+        catch (Exception e) { Globals.Log.Error($"[ProfileFetch] Batch error: {e.Message}"); }
+        finally
+        {
+            foreach (var (name, world) in toFetch)
+                _fetching.TryRemove($"{name}@{world}".ToLowerInvariant(), out _);
+        }
+    }
+
     public async Task<CachedProfile?> FetchProfileAsync(string name, string world)
     {
         var key = $"{name}@{world}".ToLowerInvariant();

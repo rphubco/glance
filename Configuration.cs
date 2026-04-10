@@ -31,6 +31,7 @@ public class Configuration : IPluginConfiguration
     public bool OnlyShowRenderedPlayers { get; set; } = false;
     public bool LockTargetProfile { get; set; } = false;
     public bool TooltipOnClickOnly { get; set; } = false;
+    public bool DisableTooltip { get; set; } = false;
     public bool NameplateIconOnlyWhenRoleplaying { get; set; } = false;
     public Vector4 NameplateVerifiedColor   { get; set; } = new(0.255f, 0f, 0.843f, 1f);
     public Vector4 NameplateUnverifiedColor { get; set; } = new(0.8f, 0.8f, 0.8f, 1f);

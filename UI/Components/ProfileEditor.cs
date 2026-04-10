@@ -435,12 +435,16 @@ public static class ProfileEditor
 
             if (glance.IconId > 0)
             {
-                var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
-                if (tex.TryGetWrap(out var wrap, out _))
+                try
                 {
-                    var iconSz = new Vector2(boxSize - 8);
-                    dl.AddImage(wrap.Handle, pos + new Vector2(4), pos + new Vector2(4) + iconSz);
+                    var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
+                    if (tex.TryGetWrap(out var wrap, out _))
+                    {
+                        var iconSz = new Vector2(boxSize - 8);
+                        dl.AddImage(wrap.Handle, pos + new Vector2(4), pos + new Vector2(4) + iconSz);
+                    }
                 }
+                catch { }
             }
             else
             {
@@ -531,9 +535,13 @@ public static class ProfileEditor
 
         if (glance.IconId > 0)
         {
-            var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
-            if (tex.TryGetWrap(out var wrap, out _))
-                dl.AddImage(wrap.Handle, previewPos + new Vector2(4), previewPos + new Vector2(previewSize - 4));
+            try
+            {
+                var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
+                if (tex.TryGetWrap(out var wrap, out _))
+                    dl.AddImage(wrap.Handle, previewPos + new Vector2(4), previewPos + new Vector2(previewSize - 4));
+            }
+            catch { }
         }
 
         ImGui.SetCursorScreenPos(previewPos + new Vector2(previewSize + UI.Md, 0));

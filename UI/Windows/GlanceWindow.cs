@@ -37,6 +37,12 @@ public sealed class GlanceWindow : Window
 
     public void Show(string name, string world, ProfileData? profile, string? profileId)
     {
+        if (Globals.Mutes.IsMuted(profileId) || profile == null)
+        {
+            Hide();
+            return;
+        }
+
         _name = name;
         _world = world;
         _profile = profile;

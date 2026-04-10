@@ -17,4 +17,5 @@ public record MetaResult([property: JsonPropertyName("name")] string Name, [prop
 public record MetaBatchResponse([property: JsonPropertyName("profiles")] MetaResult[] Profiles);
 public record NeighborResponse([property: JsonPropertyName("Name")] string Name, [property: JsonPropertyName("ProfileId")] string ProfileId, [property: JsonPropertyName("Version")] long Version, [property: JsonPropertyName("NameplateIcon")] int NameplateIcon = 0);
 public class ProfileLookupResponse { public int Id { get; set; } public long Version { get; set; } public ProfileData? Data { get; set; } public bool Unverified { get; set; } = false; }
+public class BatchLookupResponse { public Dictionary<string, ProfileLookupResponse?> Results { get; set; } = new(); }
 

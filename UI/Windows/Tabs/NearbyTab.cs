@@ -456,6 +456,16 @@ public static class NearbyTab
             var found = new List<NearbyPlayer>();
             var neighbors = Globals.Cache.GetBeaconNeighbors().ToList();
 
+            var uncached = new List<(string Name, string World)>();
+            foreach (var (name, world) in neighbors)
+            {
+                if (name.Equals(lp.Name.TextValue, StringComparison.OrdinalIgnoreCase)) continue;
+                if (Globals.Cache.GetProfile(name, world) == null)
+                    uncached.Add((name, world));
+            }
+            if (uncached.Count > 0)
+                await Globals.Cache.FetchBatchAsync(uncached);
+
             foreach (var (name, world) in neighbors)
             {
                 if (name.Equals(lp.Name.TextValue, StringComparison.OrdinalIgnoreCase)) continue;
@@ -475,10 +485,8 @@ public static class NearbyTab
                 }
 
                 var cached = Globals.Cache.GetProfile(name, world);
-                if (cached == null)
-                {
-                    _ = Globals.Cache.FetchProfileAsync(name, world);
-                }
+                if (cached != null && Globals.Mutes.IsMuted(cached.Id.ToString()))
+                    continue;
 
                 string displayName = cached?.Data?.Name ?? name;
                 string description = cached?.Data?.Description ?? (cached != null ? "Unverified Profile" : "Loading profile...");

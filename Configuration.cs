@@ -8,12 +8,13 @@ public class Configuration : IPluginConfiguration
 {
     public int Version { get; set; }
     public string ApiKey { get; set; } = "";
-    public Dictionary<ulong, string> CharacterTokens { get; set; } = [];
-    public Dictionary<ulong, string> ActiveProfiles { get; set; } = [];
+    public Dictionary<string, string> CharacterTokens { get; set; } = [];
+    public Dictionary<string, string> ActiveProfiles { get; set; } = [];
     public bool Enabled { get; set; } = true;
     public bool ShowToolbox { get; set; } = true;
-    public bool BeaconEnabled { get; set; } = true;
-    public bool BeaconLocationSharing { get; set; } = true;
+    public bool BeaconEnabled { get; set; } = false;
+    public bool BeaconLocationSharing { get; set; } = false;
+    public bool HasSeenBeaconPrompt { get; set; } = false;
     public bool EnableNameplates { get; set; } = true;
     public bool GhostMode { get; set; } = false;
     public bool NameplateTintEnabled { get; set; } = true;

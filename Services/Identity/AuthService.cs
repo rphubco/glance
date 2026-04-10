@@ -3,6 +3,7 @@ namespace Glance.Services;
 using Dalamud.Utility;
 using Glance.Core;
 using Glance.Models;
+using Glance.Utils;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
@@ -25,12 +26,19 @@ public sealed class AuthService : IDisposable
     public bool BeaconFetchFailed { get; private set; }
     public string? LastBeaconError { get; private set; }
     public bool IsAuthenticated { get; private set; }
-    public string CurrentJwt => Globals.Config.CharacterTokens?.TryGetValue(Globals.PlayerState.ContentId, out var jwt) == true ? jwt : string.Empty;
+    public string CurrentJwt
+    {
+        get
+        {
+            var hash = IdentityHash.Hash(Globals.PlayerState.ContentId);
+            return !string.IsNullOrEmpty(hash) && Globals.Config.CharacterTokens?.TryGetValue(hash, out var jwt) == true ? jwt : string.Empty;
+        }
+    }
     public bool IsReady => IsAuthenticated && !string.IsNullOrEmpty(CurrentJwt);
     public bool IsValidating { get; private set; }
     public AuthUser? CurrentUser { get; private set; }
     public bool IsWaitingForBrowser { get; private set; }
-    ulong _lastAttemptedCid;
+    string? _lastAttemptedHash;
 
     public async Task RevalidateAsync()
     {
@@ -64,17 +72,19 @@ public sealed class AuthService : IDisposable
         var cid = Globals.PlayerState.ContentId;
         if (cid == 0) return;
 
+        var hash = IdentityHash.Hash(cid);
+
         await _lock.WaitAsync();
         try
         {
             if (IsFetching) return;
 
-            if (cid != _lastAttemptedCid)
+            if (hash != _lastAttemptedHash)
             {
                 _hasAttempted = false;
                 BeaconFetchFailed = false;
                 LastBeaconError = null;
-                _lastAttemptedCid = cid;
+                _lastAttemptedHash = hash;
             }
 
             if (!string.IsNullOrEmpty(CurrentJwt)) return;
@@ -82,7 +92,7 @@ public sealed class AuthService : IDisposable
 
             IsFetching = true;
 
-            var success = await FetchBeaconToken(cid);
+            var success = await FetchBeaconToken(hash);
             if (success) _hasAttempted = true;
         }
         finally
@@ -92,7 +102,7 @@ public sealed class AuthService : IDisposable
         }
     }
 
-    async Task<bool> FetchBeaconToken(ulong cid)
+    async Task<bool> FetchBeaconToken(string hash)
     {
         try
         {
@@ -103,7 +113,7 @@ public sealed class AuthService : IDisposable
             if (name == null || world == null) return false;
 
             using var req = new HttpRequestMessage(HttpMethod.Get,
-                $"{BaseUrl}/beacon-token?name={Uri.EscapeDataString(name)}&world={Uri.EscapeDataString(world)}&cid={cid}");
+                $"{BaseUrl}/beacon-token?name={Uri.EscapeDataString(name)}&world={Uri.EscapeDataString(world)}&cid={hash}");
             req.Headers.Add("X-API-Key", Globals.Config.ApiKey);
 
             using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
@@ -130,7 +140,7 @@ public sealed class AuthService : IDisposable
                 return true;
             }
 
-            Globals.Config.CharacterTokens[cid] = data.Jwt;
+            Globals.Config.CharacterTokens[hash] = data.Jwt;
             Globals.Config.Save();
 
             BeaconFetchFailed = false;
@@ -168,7 +178,7 @@ public sealed class AuthService : IDisposable
         {
             q["name"] = p.Name.TextValue;
             q["world"] = p.HomeWorld.Value.Name.ExtractText();
-            q["cid"] = Globals.PlayerState.ContentId.ToString();
+            q["cid"] = IdentityHash.Hash(Globals.PlayerState.ContentId);
             q["race"] = Globals.PlayerState.Race.Value.Masculine.ExtractText();
             q["clan"] = Globals.PlayerState.Tribe.Value.Masculine.ExtractText();
         }
@@ -234,7 +244,7 @@ public sealed class AuthService : IDisposable
 
     record BeaconTokenResponse(string Jwt);
 
-    public void ResetSession() { _cts?.Cancel(); Globals.Profiles.Reset(); _hasAttempted = false; BeaconFetchFailed = false; LastBeaconError = null; _lastAttemptedCid = 0; }
+    public void ResetSession() { _cts?.Cancel(); Globals.Profiles.Reset(); _hasAttempted = false; BeaconFetchFailed = false; LastBeaconError = null; _lastAttemptedHash = null; }
 
     public void Logout()
     {

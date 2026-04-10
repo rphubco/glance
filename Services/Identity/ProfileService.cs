@@ -3,6 +3,7 @@ namespace Glance.Services;
 using Dalamud.Plugin.Services;
 using Glance.Core;
 using Glance.Models;
+using Glance.Utils;
 using System;
 using System.Linq;
 using System.Net.Http;
@@ -19,28 +20,26 @@ public sealed class ProfileService
     public ProfilesResponse? Data { get; private set; }
     public string? PendingActiveId { get; private set; }
     public string? ActiveProfileId => PendingActiveId ?? Data?.ActiveProfileId;
-    ulong _lastContentId;
+    string? _lastHash;
 
     public async Task FetchProfilesAsync()
     {
         if (!Globals.Auth.IsAuthenticated) { Globals.Log.Info("[Profiles] FetchProfilesAsync: not authenticated, skipping"); return; }
-        string? cid = null, name = null, world = null;
-        ulong contentId = 0;
+        string? hash = null, name = null, world = null;
         await Globals.Framework.RunOnFrameworkThread(() =>
         {
             if (Globals.Objects.LocalPlayer is not { } p) return;
-            contentId = Globals.PlayerState.ContentId;
-            cid = contentId.ToString();
+            hash = IdentityHash.Hash(Globals.PlayerState.ContentId);
             name = p.Name.TextValue;
             world = p.HomeWorld.Value.Name.ExtractText();
         });
 
-        Globals.Log.Info($"[Profiles] FetchProfilesAsync: cid={cid}, name={name}, world={world}");
+        Globals.Log.Info($"[Profiles] FetchProfilesAsync: name={name}, world={world}");
 
         try
         {
             var q = HttpUtility.ParseQueryString("");
-            if (cid != null) { q["contentId"] = cid; q["name"] = name; q["world"] = world; }
+            if (!string.IsNullOrEmpty(hash)) { q["contentId"] = hash; q["name"] = name; q["world"] = world; }
             using var req = new HttpRequestMessage(HttpMethod.Get, $"{BaseUrl}/mine?{q}");
             req.Headers.Authorization = new AuthenticationHeaderValue("Bearer", Globals.Config.ApiKey);
             var res = await Globals.Http.SendAsync(req);
@@ -55,10 +54,10 @@ public sealed class ProfileService
             if (data?.ActiveProfileId == PendingActiveId) PendingActiveId = null;
             Data = data;
 
-            if (contentId != 0 && contentId != _lastContentId)
+            if (!string.IsNullOrEmpty(hash) && hash != _lastHash)
             {
-                _lastContentId = contentId;
-                if (Globals.Config.ActiveProfiles.TryGetValue(contentId, out var saved) &&
+                _lastHash = hash;
+                if (Globals.Config.ActiveProfiles.TryGetValue(hash, out var saved) &&
                     saved != Data?.ActiveProfileId &&
                     Data?.Characters?.Any(p => p.Id == saved) == true)
                 {
@@ -66,7 +65,7 @@ public sealed class ProfileService
                 }
                 else if (Data?.ActiveProfileId != null)
                 {
-                    Globals.Config.ActiveProfiles[contentId] = Data.ActiveProfileId;
+                    Globals.Config.ActiveProfiles[hash] = Data.ActiveProfileId;
                     Globals.Config.Save();
                 }
             }
@@ -109,16 +108,14 @@ public sealed class ProfileService
     {
         if (!Globals.Auth.IsReady) return;
 
-        ulong contentId = 0;
-        string? cid = null;
+        string? hash = null;
 
         await Globals.Framework.RunOnFrameworkThread(() =>
         {
-            contentId = Globals.PlayerState.ContentId;
-            if (contentId != 0) cid = contentId.ToString();
+            hash = IdentityHash.Hash(Globals.PlayerState.ContentId);
         });
 
-        if (cid == null) return;
+        if (string.IsNullOrEmpty(hash)) return;
 
         PendingActiveId = profileId;
 
@@ -126,7 +123,7 @@ public sealed class ProfileService
         {
             using var req = new HttpRequestMessage(HttpMethod.Post, $"{BeaconUrl}/profile/activate")
             {
-                Content = JsonContent.Create(new { contentId = cid, characterId = profileId }),
+                Content = JsonContent.Create(new { contentId = hash, characterId = profileId }),
                 Headers = { Authorization = new AuthenticationHeaderValue("Bearer", Globals.Auth.CurrentJwt) }
             };
 
@@ -140,7 +137,7 @@ public sealed class ProfileService
                 return;
             }
 
-            Globals.Config.ActiveProfiles[contentId] = profileId;
+            Globals.Config.ActiveProfiles[hash] = profileId;
             Globals.Config.Save();
             await FetchProfilesAsync();
         }
@@ -155,6 +152,6 @@ public sealed class ProfileService
     {
         Data = null;
         PendingActiveId = null;
-        _lastContentId = 0;
+        _lastHash = null;
     }
 }

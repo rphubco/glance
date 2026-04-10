@@ -56,6 +56,7 @@ public sealed class Globals
     public static ChatReplaceService ChatReplace { get; private set; } = null!;
     public static ReportWindow ReportWindow { get; private set; } = null!;
     public static NameplateNodeService NameplateNodes { get; private set; } = null!;
+    public static BeaconPromptWindow BeaconPrompt { get; private set; } = null!;
     public static void Initialize(IDalamudPluginInterface pi)
     {
         pi.Create<Globals>();
@@ -114,6 +115,7 @@ public sealed class Globals
         Notes = new();
         Mutes = new();
         NameplateNodes = new();
+        BeaconPrompt = new();
     }
 
     public static void Dispose()

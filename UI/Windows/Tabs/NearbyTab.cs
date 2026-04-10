@@ -46,10 +46,8 @@ public static class NearbyTab
         UI.Divider();
         UI.Space(UI.Sm);
 
-        if (_scanning && _players.Count == 0)
+        if (_players.Count == 0)
             DrawLoadingState();
-        else if (_players.Count == 0)
-            DrawEmptyState();
         else
             DrawPlayerList();
     }
@@ -392,28 +390,6 @@ public static class NearbyTab
         UI.Space(UI.Xs);
         Theme.Centered("Connect your RPHub account to see", Theme.TextMuted);
         Theme.Centered("nearby roleplayers", Theme.TextMuted);
-    }
-
-    static void DrawEmptyState()
-    {
-        var avail = ImGui.GetContentRegionAvail();
-        var dl = ImGui.GetWindowDrawList();
-
-        UI.Space(avail.Y * 0.2f);
-
-        var centerX = ImGui.GetCursorScreenPos().X + avail.X / 2;
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(2.5f);
-        var icon = FontAwesomeIcon.UsersSlash.ToIconString();
-        var iconSize = ImGui.CalcTextSize(icon);
-        dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.LabelColorDim with { W = 0.4f }), icon);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
-
-        UI.Space(50);
-        Theme.Centered("No Roleplayers Nearby", Theme.LabelColor);
-        UI.Space(UI.Xs);
-        Theme.Centered("Glance users in your area will appear here", Theme.TextMuted);
     }
 
     static void DrawLoadingState()

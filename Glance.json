@@ -7,7 +7,7 @@
     "RepoUrl": "https://github.com/rphubco/glance",
     "ApplicableVersion": "any",
     "DalamudApiLevel": 14,
-    "AssemblyVersion": "1.2.4.0",
+    "AssemblyVersion": "1.2.5.0",
     "IconUrl": "https://raw.githubusercontent.com/rphubco/glance/master/icon.png",
     "DownloadLinkInstall": "https://github.com/rphubco/glance/releases/latest/download/latest.zip",
     "Tags": [

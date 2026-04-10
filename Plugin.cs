@@ -52,6 +52,7 @@ public sealed class Plugin : IDalamudPlugin
         _ws.AddWindow(Globals.GlanceWindow);
         _ws.AddWindow(Globals.Toolbox);
         _ws.AddWindow(Globals.ReportWindow);
+        _ws.AddWindow(Globals.BeaconPrompt);
 
         Globals.Interface.UiBuilder.Draw += _ws.Draw;
         Globals.Interface.UiBuilder.OpenMainUi += OnOpenMainUi;
@@ -78,12 +79,31 @@ public sealed class Plugin : IDalamudPlugin
 
     void InitializePlugin()
     {
+        MaybeShowBeaconPrompt();
+
         Globals.ClientState.Login += OnLogin;
         Globals.ClientState.Logout += OnLogout;
         Globals.Framework.Update += OnTick;
         Globals.Toolbox.IsOpen = true;
         _ = Globals.Auth.RevalidateAsync();
         _ = Globals.Mutes.FetchAsync();
+    }
+
+    // dont reprompt users that seen it
+    void MaybeShowBeaconPrompt()
+    {
+        if (Globals.Config.HasSeenBeaconPrompt) return;
+
+        var isExistingUser = Globals.Config.BeaconEnabled
+            || !string.IsNullOrEmpty(Globals.Config.ApiKey);
+        if (isExistingUser)
+        {
+            Globals.Config.HasSeenBeaconPrompt = true;
+            Globals.Config.Save();
+            return;
+        }
+
+        Globals.BeaconPrompt.IsOpen = true;
     }
 
     private void OnOpenConfigUi() => OnOpenMainUi();
@@ -127,8 +147,7 @@ public sealed class Plugin : IDalamudPlugin
     }
     void OnLogin()
     {
-        var cid = Globals.PlayerState.ContentId;
-        Globals.Log.Information($"[AuthEvent] OnLogin fired. Current ContentId: {cid}");
+        Globals.Log.Information("[AuthEvent] OnLogin fired.");
         Globals.Toolbox.ResetState();
 
         Task.Run(async () => {
@@ -154,7 +173,7 @@ public sealed class Plugin : IDalamudPlugin
                 if ((DateTime.Now - _lastTokenAttempt).TotalSeconds > 2)
                 {
                     _lastTokenAttempt = DateTime.Now;
-                    _ = Globals.Auth.EnsureBeaconTokenAsync();
+                    _ = Globals.Auth.EnsureBeaconTokenAsync(true);
                 }
             }
         }

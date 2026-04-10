@@ -7,7 +7,7 @@
         <Description>View RPHub character profiles in-game.</Description>
         <PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
         <PackageRequireLicenseAcceptance>true</PackageRequireLicenseAcceptance>
-        <Copyright>Copyright © 2026 hanabi / RPHub.co. All rights reserved.</Copyright>
+        <Copyright>Copyright © 2026 hanabi / RPHub.co. Licensed under AGPL-3.0.</Copyright>
 
         <IsPackable>false</IsPackable>
         <AssemblyName>Glance</AssemblyName>

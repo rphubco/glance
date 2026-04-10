@@ -40,7 +40,9 @@ All FFXIV content is property of Square Enix. Glance and RPHub are not affiliate
 
 ## License
 
-All Rights Reserved. You can view the source and compile for personal use, but redistribution and derivative works require written permission. See [LICENSE](LICENSE.txt).
+Glance (the client-side Dalamud plugin) is licensed under the [GNU Affero General Public License v3.0](LICENSE.txt). If you distribute modified versions or host them as a network service, you must make your source available under the same terms.
+
+The RPHub.co backend service that Glance communicates with is a separate, closed-source program operated by RPHub.co and is not covered by this license.
 
 ---
 

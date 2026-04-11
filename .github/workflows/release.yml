@@ -30,11 +30,6 @@ jobs:
       - name: Build
         run: dotnet build -c Release
 
-      - name: Package
-        run: |
-          cd bin/Release/win-x64
-          zip -r latest.zip *.dll *.json *.pdb
-
       - name: Extract version
         id: version
         run: |
@@ -55,7 +50,7 @@ jobs:
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
-          files: bin/Release/win-x64/latest.zip
+          files: bin/Release/Glance/latest.zip
 
       - name: Commit pluginmaster.json
         run: |

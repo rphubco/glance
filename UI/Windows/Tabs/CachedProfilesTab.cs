@@ -73,7 +73,6 @@ public static class CachedProfilesTab
             }
         }
         ImGui.EndChild();
-        ImGui.EndChild();
     }
 
     static void DrawHeader()
@@ -218,30 +217,26 @@ public static class CachedProfilesTab
             myWorld = lp.HomeWorld.Value.Name.ExtractText();
         }
 
-        var field = typeof(CacheService).GetField("_profiles", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
-        if (field?.GetValue(Globals.Cache) is System.Collections.Concurrent.ConcurrentDictionary<string, CachedProfile> profiles)
+        foreach (var (key, cached) in Globals.Cache.GetAllCached())
         {
-            foreach (var (key, cached) in Globals.Cache.GetAllCached())
-            {
-                if (cached.Data == null || cached.Unverified) continue;
+            if (cached.Data == null || cached.Unverified) continue;
 
-                var parts = key.Split('@', 2);
-                if (parts.Length != 2) continue;
+            var parts = key.Split('@', 2);
+            if (parts.Length != 2) continue;
 
-                var name = parts[0];
-                var world = parts[1];
+            var name = parts[0];
+            var world = parts[1];
 
-                if (myName != null && name.Equals(myName, StringComparison.OrdinalIgnoreCase) &&
-                    world.Equals(myWorld!, StringComparison.OrdinalIgnoreCase))
-                    continue;
+            if (myName != null && name.Equals(myName, StringComparison.OrdinalIgnoreCase) &&
+                world.Equals(myWorld!, StringComparison.OrdinalIgnoreCase))
+                continue;
 
-                list.Add(new CachedEntry(
-                    name, world,
-                    cached.Data.Name,
-                    cached.Data.Description,
-                    cached.Data.PageImage,
-                    cached.FetchedAt));
-            }
+            list.Add(new CachedEntry(
+                name, world,
+                cached.Data.Name,
+                cached.Data.Description,
+                cached.Data.PageImage,
+                cached.FetchedAt));
         }
 
         _entries = list.OrderByDescending(e => e.FetchedAt).ToList();

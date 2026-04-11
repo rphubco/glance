@@ -73,7 +73,8 @@ public sealed class BeaconService : IDisposable
         if (string.IsNullOrEmpty(Globals.Auth.CurrentJwt)) return;
         if ((DateTime.UtcNow - _lastPing).TotalSeconds < IntervalSec) return;
 
-        var world = Globals.PlayerState.CurrentWorld.Value.Name.ExtractText();
+        var world = Globals.PlayerState.CurrentWorld.ValueNullable?.Name.ExtractText();
+        if (string.IsNullOrEmpty(world)) return;
         await Heartbeat(world, _lastZone);
     }
 

@@ -314,7 +314,7 @@ public static class ProfileEditor
         ImGui.TextColored(Theme.LabelColor, "Race");
         ImGui.SetNextItemWidth(fieldW * 0.5f);
         ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races, RaceData.Races.Length))
+        if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races))
         {
             draft.Race = RaceData.Races[_raceIdx];
             _clanIdx = 0;
@@ -343,7 +343,7 @@ public static class ProfileEditor
 
         if (_raceIdx >= 0 && _raceIdx < RaceData.Races.Length && RaceData.Clans.TryGetValue(RaceData.Races[_raceIdx], out var clans))
         {
-            if (ImGui.Combo("##clan", ref _clanIdx, clans, clans.Length))
+            if (ImGui.Combo("##clan", ref _clanIdx, clans))
                 draft.Clan = clans[_clanIdx];
 
             ImGui.PopStyleColor();

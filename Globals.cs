@@ -33,7 +33,7 @@ public sealed class Globals
     [PluginService] public static IObjectTable? ObjectTable { get; set; }
     [PluginService] public static IKeyState KeyState { get; private set; }
 
-    public static string Version => typeof(Globals).Assembly.GetName().Version?.ToString(3) ?? "unknown";
+    public static string Version => Interface.Manifest.AssemblyVersion.ToString(3);
     public static HttpClient Http { get; private set; } = null!;
     public static HttpClient ImageHttp { get; private set; } = null!;
     public static Configuration Config { get; set; } = null!;

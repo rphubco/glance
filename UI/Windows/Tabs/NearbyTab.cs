@@ -89,7 +89,7 @@ public static class NearbyTab
 
             ImGui.BulletText("Shows other Glance users currently in your immediate area.");
 
-            var myWorld = Globals.PlayerState?.CurrentWorld.Value.Name.ExtractText() ?? "Unknown";
+            var myWorld = Globals.PlayerState?.CurrentWorld.ValueNullable?.Name.ExtractText() ?? "Unknown";
             ImGui.BulletText($"Currently tracking users on:");
             ImGui.SameLine();
             ImGui.TextColored(Theme.Primary, myWorld);
@@ -145,7 +145,7 @@ public static class NearbyTab
 
     static void DrawPlayerList()
     {
-        var myWorld = Globals.PlayerState?.HomeWorld.Value.Name.ExtractText();
+        var myWorld = Globals.PlayerState?.HomeWorld.ValueNullable?.Name.ExtractText();
 
         if (ImGui.BeginChild("##playerlist_tab", new Vector2(-1, -1), false, ImGuiWindowFlags.None))
         {
@@ -486,12 +486,11 @@ public static class NearbyTab
 
     static string GetZone()
     {
-        try
-        {
-            var id = Globals.ClientState.TerritoryType;
-            return Globals.Data.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>()?.GetRow(id).PlaceName.Value.Name.ExtractText() ?? $"Zone {id}";
-        }
-        catch { return $"Zone {Globals.ClientState.TerritoryType}"; }
+        var id = Globals.ClientState.TerritoryType;
+        if (Globals.Data.GetExcelSheet<Lumina.Excel.Sheets.TerritoryType>().TryGetRow(id, out var row)
+            && row.PlaceName.ValueNullable is { } place)
+            return place.Name.ToString();
+        return $"Zone {id}";
     }
 
     static string Truncate(string s, int max) => s.Length > max ? s[..(max - 2)] + "…" : s;

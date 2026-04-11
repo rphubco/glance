@@ -5,7 +5,6 @@ using Dalamud.Interface;
 using Dalamud.Interface.Textures;
 using Glance.Utils;
 using Glance.Core;
-using System.Diagnostics;
 using System.Numerics;
 
 public static class AboutTab
@@ -141,7 +140,7 @@ public static class AboutTab
         dl.AddText(new Vector2(startX + iconSz.X + 6, p.Y + (h - labelSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), label);
 
         if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-        if (clicked) Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true });
+        if (clicked) Dalamud.Utility.Util.OpenLink(url);
     }
 
     static void DrawFooter(ImDrawListPtr dl, float w)

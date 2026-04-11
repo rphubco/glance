@@ -9,7 +9,6 @@ using Glance.UI.Windows;
 using Glance.Utils;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
 using System.Threading.Tasks;
@@ -245,7 +244,7 @@ public static class ProfileTab
         ImGui.EndGroup();
         var bx = p.X + w - pad - 24;
         if (profileId != null && IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.ExternalLinkAlt, "View on RPHub"))
-            Process.Start(new ProcessStartInfo { FileName = $"https://rphub.co/ch/{profileId}", UseShellExecute = true });
+            Dalamud.Utility.Util.OpenLink($"https://rphub.co/ch/{profileId}");
         bx -= 28;
         if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Sync, "Refresh")) Refresh(name, world);
         if (canEdit) { bx -= 28; if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Edit, "Edit Profile")) ProfileEditor.OpenForEdit(data, profileId); }

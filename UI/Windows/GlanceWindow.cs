@@ -9,7 +9,6 @@ using Glance.Core;
 using Glance.Models;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Numerics;
 
 public sealed class GlanceWindow : Window
@@ -230,7 +229,7 @@ public sealed class GlanceWindow : Window
 
         if (IconBtn(FontAwesomeIcon.ExternalLinkAlt, "View on RPHub", btnSize, _profileId == null))
             if (_profileId != null)
-                Process.Start(new ProcessStartInfo { FileName = $"https://rphub.co/ch/{_profileId}", UseShellExecute = true });
+                Dalamud.Utility.Util.OpenLink($"https://rphub.co/ch/{_profileId}");
 
         ImGui.SameLine(0, spacing);
 

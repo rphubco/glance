@@ -45,7 +45,7 @@ jobs:
 
       - name: Update pluginmaster.json
         run: |
-          sed -i "s/\"AssemblyVersion\": \"[^\"]*\"/\"AssemblyVersion\": \"${{ steps.version.outputs.version }}\"/" pluginmaster.json
+          sed -i "s/\"AssemblyVersion\": \"[^\"]*\"/\"AssemblyVersion\": \"${{ steps.version.outputs.version }}.0\"/" pluginmaster.json
 
       - name: Release
         uses: softprops/action-gh-release@v2

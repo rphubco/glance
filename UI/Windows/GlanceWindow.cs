@@ -3,6 +3,7 @@ namespace Glance.UI.Windows;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
@@ -53,16 +54,19 @@ public sealed class GlanceWindow : Window
 
     public void Hide() => _hiding = true;
 
+    IDisposable? _themeScope;
+    IDisposable? _alphaScope;
+
     public override void PreDraw()
     {
-        Theme.PushStyle();
+        _themeScope = Theme.PushStyle();
 
         var dt = ImGui.GetIO().DeltaTime;
         _alpha = _hiding
             ? Math.Max(0f, _alpha - dt * 7f)
             : Math.Min(1f, _alpha + dt * 9f);
         if (_hiding && _alpha <= 0f) { IsOpen = false; _hiding = false; }
-        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, _alpha);
+        _alphaScope = ImRaii.PushStyle(ImGuiStyleVar.Alpha, _alpha);
 
         var vp = ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + vp.WorkSize.X - Width - 24, vp.WorkPos.Y + 80), ImGuiCond.FirstUseEver);
@@ -70,8 +74,10 @@ public sealed class GlanceWindow : Window
 
     public override void PostDraw()
     {
-        ImGui.PopStyleVar();
-        Theme.PopStyle();
+        _alphaScope?.Dispose();
+        _alphaScope = null;
+        _themeScope?.Dispose();
+        _themeScope = null;
     }
 
     public override void Draw()
@@ -163,7 +169,7 @@ public sealed class GlanceWindow : Window
                     ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     dl.AddRect(pos, max, Theme.Col(Theme.GoldColor), 4, ImDrawFlags.None, 2);
 
-                    ImGui.BeginTooltip();
+                    using var tip = ImRaii.Tooltip();
                     ImGui.TextColored(Theme.GoldColor, g.Label ?? "");
                     if (!string.IsNullOrEmpty(g.Value))
                     {
@@ -172,16 +178,16 @@ public sealed class GlanceWindow : Window
                         ImGui.TextColored(Theme.ValueColor, g.Value);
                         ImGui.PopTextWrapPos();
                     }
-                    ImGui.EndTooltip();
                 }
             }
             else
             {
-                ImGui.PushFont(UiBuilder.IconFont);
-                var txt = FontAwesomeIcon.Question.ToIconString();
-                var tsz = ImGui.CalcTextSize(txt);
-                dl.AddText(pos + (new Vector2(GlanceBoxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.2f }), txt);
-                ImGui.PopFont();
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                {
+                    var txt = FontAwesomeIcon.Question.ToIconString();
+                    var tsz = ImGui.CalcTextSize(txt);
+                    dl.AddText(pos + (new Vector2(GlanceBoxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.2f }), txt);
+                }
 
                 ImGui.SetCursorScreenPos(pos);
                 ImGui.InvisibleButton($"##g{i}", new Vector2(GlanceBoxSize));
@@ -205,7 +211,7 @@ public sealed class GlanceWindow : Window
             if (_name != null && _world != null)
             {
                 var lp = Globals.Objects.LocalPlayer;
-                var isSelf = lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ExtractText();
+                var isSelf = lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ToString();
                 if (isSelf)
                     Globals.MainWindow.ShowProfile();
                 else
@@ -278,12 +284,13 @@ public sealed class GlanceWindow : Window
         if (hov)
             dl.AddRectFilled(pos, pos + sz, Theme.Col(Theme.ButtonHovered), 3);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        var txt = icon.ToIconString();
-        var tsz = ImGui.CalcTextSize(txt);
-        var col = disabled ? Theme.LabelColorDim : hov || highlight ? Theme.GoldColor : Theme.LabelColor;
-        dl.AddText(pos + (sz - tsz) / 2, Theme.Col(col), txt);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var txt = icon.ToIconString();
+            var tsz = ImGui.CalcTextSize(txt);
+            var col = disabled ? Theme.LabelColorDim : hov || highlight ? Theme.GoldColor : Theme.LabelColor;
+            dl.AddText(pos + (sz - tsz) / 2, Theme.Col(col), txt);
+        }
 
         if (hov)
         {

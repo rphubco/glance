@@ -225,7 +225,7 @@ public sealed class Plugin : IDalamudPlugin
             && Globals.TargetManager.Target.Name.TextValue == lp.Name.TextValue)
             hard = lp;
 
-        var hardId = hard != null ? $"{hard.Name.TextValue}@{hard.HomeWorld.Value.Name.ExtractText()}" : null;
+        var hardId = hard != null ? $"{hard.Name.TextValue}@{hard.HomeWorld.Value.Name.ToString()}" : null;
         if (hardId != _lastHardId)
         {
             _lastHardId = hardId;
@@ -234,7 +234,7 @@ public sealed class Plugin : IDalamudPlugin
 
         if (hover != null)
         {
-            var hoverId = $"{hover.Name.TextValue}@{hover.HomeWorld.Value.Name.ExtractText()}";
+            var hoverId = $"{hover.Name.TextValue}@{hover.HomeWorld.Value.Name.ToString()}";
             if (_pendingHoverId != hoverId) { _pendingHoverId = hoverId; _pendingHoverSince = DateTime.UtcNow; }
         }
         else _pendingHoverId = null;
@@ -244,7 +244,7 @@ public sealed class Plugin : IDalamudPlugin
 
         var clickOnly = Globals.Config.TooltipOnClickOnly;
         var fetchNow = hard != null || (!clickOnly && hoverReady);
-        var hoverHasProfile = hover != null && Globals.Cache.GetProfile(hover.Name.TextValue, hover.HomeWorld.Value.Name.ExtractText())?.Data != null;
+        var hoverHasProfile = hover != null && Globals.Cache.GetProfile(hover.Name.TextValue, hover.HomeWorld.Value.Name.ToString())?.Data != null;
         // dont stela focus back to hard target if hover already had profile loaded 
         var freshHover = hover != null && _pendingHoverId != _hoverAtHardChange && hoverHasProfile;
         var active = clickOnly ? hard
@@ -261,7 +261,7 @@ public sealed class Plugin : IDalamudPlugin
             }
 
             var name = active.Name.TextValue;
-            var world = active.HomeWorld.Value.Name.ExtractText();
+            var world = active.HomeWorld.Value.Name.ToString();
             var id = $"{name}@{world}";
             if (_lastTarget == id)
             {

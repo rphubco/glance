@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Core;
 using Glance.Utils;
@@ -54,11 +55,12 @@ public sealed class ReportWindow : Window
         if (_sent)
         {
             UI.Space(UI.Md);
-            ImGui.PushFont(UiBuilder.IconFont);
-            var checkSize = ImGui.CalcTextSize(FontAwesomeIcon.CheckCircle.ToIconString());
-            ImGui.SetCursorPosX((ImGui.GetContentRegionAvail().X - checkSize.X) / 2);
-            ImGui.TextColored(new Vector4(0.4f, 0.8f, 0.4f, 1f), FontAwesomeIcon.CheckCircle.ToIconString());
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var checkSize = ImGui.CalcTextSize(FontAwesomeIcon.CheckCircle.ToIconString());
+                ImGui.SetCursorPosX((ImGui.GetContentRegionAvail().X - checkSize.X) / 2);
+                ImGui.TextColored(new Vector4(0.4f, 0.8f, 0.4f, 1f), FontAwesomeIcon.CheckCircle.ToIconString());
+            }
 
             UI.Space(UI.Sm);
             Theme.Centered("Report Submitted", new Vector4(0.9f, 0.9f, 0.9f, 1f));
@@ -87,27 +89,26 @@ public sealed class ReportWindow : Window
             var (id, label, icon) = Reasons[i];
             var selected = _selectedReason == i;
 
-            ImGui.PushStyleColor(ImGuiCol.Button, selected ? Theme.Error with { W = 0.25f } : Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, selected ? Theme.Error with { W = 0.35f } : Theme.ButtonHovered);
-            ImGui.PushStyleColor(ImGuiCol.Border, selected ? Theme.Error with { W = 0.6f } : Theme.FrameBorder);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameBorderSize, selected ? 1f : 0f);
-
-            if (ImGui.Button($"##reason{i}", new Vector2(ImGui.GetContentRegionAvail().X, 32)))
+            using (ImRaii.PushColor(ImGuiCol.Button, selected ? Theme.Error with { W = 0.25f } : Theme.ButtonBg)
+                .Push(ImGuiCol.ButtonHovered, selected ? Theme.Error with { W = 0.35f } : Theme.ButtonHovered)
+                .Push(ImGuiCol.Border, selected ? Theme.Error with { W = 0.6f } : Theme.FrameBorder))
+            using (ImRaii.PushStyle(ImGuiStyleVar.FrameBorderSize, selected ? 1f : 0f))
             {
-                _selectedReason = i;
-                Sound.PlayClick();
+                if (ImGui.Button($"##reason{i}", new Vector2(ImGui.GetContentRegionAvail().X, 32)))
+                {
+                    _selectedReason = i;
+                    Sound.PlayClick();
+                }
             }
-
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor(3);
 
             var min = ImGui.GetItemRectMin();
             var dl = ImGui.GetWindowDrawList();
 
-            ImGui.PushFont(UiBuilder.IconFont);
-            var iconStr = icon.ToIconString();
-            dl.AddText(min + new Vector2(10, 8), Theme.Col(selected ? Theme.Error : Theme.LabelColorDim), iconStr);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var iconStr = icon.ToIconString();
+                dl.AddText(min + new Vector2(10, 8), Theme.Col(selected ? Theme.Error : Theme.LabelColorDim), iconStr);
+            }
 
             dl.AddText(min + new Vector2(32, 8), Theme.Col(selected ? new Vector4(1, 1, 1, 1) : Theme.LabelColor), label);
 
@@ -128,11 +129,11 @@ public sealed class ReportWindow : Window
         ImGui.TextColored(Theme.TextMuted, "(optional)");
         UI.Space(UI.Xs);
 
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(UI.Sm));
-        ImGui.InputTextMultiline("##notes", ref _notes, 500, new Vector2(ImGui.GetContentRegionAvail().X, 60));
-        ImGui.PopStyleVar();
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UI.Sm)))
+        {
+            ImGui.InputTextMultiline("##notes", ref _notes, 500, new Vector2(ImGui.GetContentRegionAvail().X, 60));
+        }
 
         ImGui.TextColored(Theme.TextMuted, $"{_notes.Length}/500");
 
@@ -145,16 +146,14 @@ public sealed class ReportWindow : Window
         UI.Space(UI.Sm);
 
         var canSubmit = !_sending && _selectedReason >= 0;
-        if (!canSubmit) ImGui.BeginDisabled();
-
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.Error with { W = 0.7f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.9f });
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1, 1, 1, 1));
-        if (ImGui.Button(_sending ? "Submitting..." : "Submit Report", new Vector2(150, 28)))
-            Submit();
-        ImGui.PopStyleColor(3);
-
-        if (!canSubmit) ImGui.EndDisabled();
+        using (ImRaii.Disabled(!canSubmit))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.7f })
+            .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.9f }))
+        using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(1, 1, 1, 1)))
+        {
+            if (ImGui.Button(_sending ? "Submitting..." : "Submit Report", new Vector2(150, 28)))
+                Submit();
+        }
 
         ImGui.SameLine(0, UI.Sm);
         if (ImGui.Button("Cancel", new Vector2(100, 28)))

@@ -2,6 +2,7 @@ namespace Glance.UI.Tabs;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Core;
 using Glance.Models;
 using Glance.Services;
@@ -49,7 +50,8 @@ public static class CachedProfilesTab
             return;
         }
 
-        if (ImGui.BeginChild("##cachedlist", new Vector2(-1, -1)))
+        using var child = ImRaii.Child("##cachedlist", new Vector2(-1, -1));
+        if (child)
         {
             unsafe
             {
@@ -72,7 +74,6 @@ public static class CachedProfilesTab
                 clipperPtr.End();
             }
         }
-        ImGui.EndChild();
     }
 
     static void DrawHeader()
@@ -88,10 +89,9 @@ public static class CachedProfilesTab
     static void DrawSearchBar()
     {
         var w = ImGui.GetContentRegionAvail().X;
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
+        using var _bg = ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
         ImGui.SetNextItemWidth(w);
         ImGui.InputTextWithHint("##cachesearch", "Search by name or world...", ref _search, 64);
-        ImGui.PopStyleColor();
     }
 
     static void DrawCard(CachedEntry e)
@@ -130,11 +130,12 @@ public static class CachedProfilesTab
         else
         {
             dl.AddRectFilled(imgPos, imgMax, Theme.Col(Theme.FrameBorderInner with { W = 0.3f }), 4);
-            ImGui.PushFont(UiBuilder.IconFont);
-            var icon = FontAwesomeIcon.User.ToIconString();
-            var iconSz = ImGui.CalcTextSize(icon);
-            dl.AddText(imgPos + (new Vector2(ImageSize) - iconSz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.5f }), icon);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var icon = FontAwesomeIcon.User.ToIconString();
+                var iconSz = ImGui.CalcTextSize(icon);
+                dl.AddText(imgPos + (new Vector2(ImageSize) - iconSz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.5f }), icon);
+            }
         }
         dl.AddRect(imgPos, imgMax, Theme.Col(Theme.FrameBorder with { W = 0.4f }), 4);
 
@@ -153,9 +154,8 @@ public static class CachedProfilesTab
         ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + 28));
         ImGui.SetWindowFontScale(Theme.SmallFont);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
         ImGui.SameLine(0, 4);
         ImGui.TextColored(Theme.WorldColor, $"{e.Name} @ {e.World}");
 
@@ -191,13 +191,14 @@ public static class CachedProfilesTab
         UI.Space(avail.Y * 0.25f);
 
         var centerX = ImGui.GetCursorScreenPos().X + avail.X / 2;
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(2f);
-        var icon = FontAwesomeIcon.Database.ToIconString();
-        var iconSize = ImGui.CalcTextSize(icon);
-        dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.LabelColorDim with { W = 0.4f }), icon);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(2f);
+            var icon = FontAwesomeIcon.Database.ToIconString();
+            var iconSize = ImGui.CalcTextSize(icon);
+            dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.LabelColorDim with { W = 0.4f }), icon);
+            ImGui.SetWindowFontScale(1f);
+        }
 
         UI.Space(40);
         Theme.Centered(title ?? "No Cached Profiles", Theme.LabelColor);
@@ -214,7 +215,7 @@ public static class CachedProfilesTab
         if (Globals.Objects.LocalPlayer is { } lp)
         {
             myName = lp.Name.TextValue;
-            myWorld = lp.HomeWorld.Value.Name.ExtractText();
+            myWorld = lp.HomeWorld.Value.Name.ToString();
         }
 
         foreach (var (key, cached) in Globals.Cache.GetAllCached())

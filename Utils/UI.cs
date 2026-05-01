@@ -2,6 +2,7 @@ namespace Glance.Utils;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
@@ -44,10 +45,11 @@ public static class UI
         var hov = ImGui.IsItemHovered();
         dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col(hov ? Theme.ButtonHovered : Theme.ButtonBg), 6f);
         dl.AddRect(p, p + new Vector2(w, h), Theme.Col(Theme.FrameBorderInner), 6f);
-        ImGui.PushFont(UiBuilder.IconFont);
-        var isz = ImGui.CalcTextSize(icon);
-        dl.AddText(p + new Vector2((w - isz.X) / 2, 10), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), icon);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var isz = ImGui.CalcTextSize(icon);
+            dl.AddText(p + new Vector2((w - isz.X) / 2, 10), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), icon);
+        }
         ImGui.SetWindowFontScale(Theme.SmallFont);
         var lsz = ImGui.CalcTextSize(label);
         dl.AddText(p + new Vector2((w - lsz.X) / 2, h - lsz.Y - 6), Theme.Col(Theme.ValueColor), label);

@@ -349,7 +349,7 @@ public sealed class ProfileEditService
         string? name = null, world = null;
         await Globals.Framework.RunOnFrameworkThread(() =>
         {
-            if (Globals.Objects.LocalPlayer is { } p) { name = p.Name.TextValue; world = p.HomeWorld.Value.Name.ExtractText(); }
+            if (Globals.Objects.LocalPlayer is { } p) { name = p.Name.TextValue; world = p.HomeWorld.Value.Name.ToString(); }
         });
         if (name != null && world != null)
         {

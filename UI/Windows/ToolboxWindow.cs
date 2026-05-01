@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
@@ -43,15 +44,17 @@ public sealed class ToolboxWindow : Window
         return Globals.Config.ShowToolbox && Globals.Auth.IsAuthenticated && _activeProfileId != null;
     }
 
+    IDisposable? _themeScope;
+
     public override void PreDraw()
     {
-        Theme.PushStyle();
+        _themeScope = Theme.PushStyle();
         var vp = ImGui.GetMainViewport();
         ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + 16, vp.WorkPos.Y + vp.WorkSize.Y - 80), ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowBgAlpha(0.9f);
     }
 
-    public override void PostDraw() => Theme.PopStyle();
+    public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
 
     public override void Draw()
     {
@@ -63,14 +66,8 @@ public sealed class ToolboxWindow : Window
 
         if (Globals.PlayerState == null)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Error);
-
-            if (Globals.PlayerState == null)
-            {
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.Error))
                 ImGui.TextWrapped("Not logged in");
-            }
-
-            ImGui.PopStyleColor();
             return;
         }
 
@@ -194,11 +191,12 @@ public sealed class ToolboxWindow : Window
         }
         else
         {
-            ImGui.PushFont(UiBuilder.IconFont);
-            var icon = FontAwesomeIcon.User.ToIconString();
-            var sz = ImGui.CalcTextSize(icon);
-            dl.AddText(pos + (new Vector2(IconSize) - sz) / 2, Theme.Col(Theme.LabelColorDim), icon);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var icon = FontAwesomeIcon.User.ToIconString();
+                var sz = ImGui.CalcTextSize(icon);
+                dl.AddText(pos + (new Vector2(IconSize) - sz) / 2, Theme.Col(Theme.LabelColorDim), icon);
+            }
         }
 
         ImGui.SetCursorScreenPos(pos);
@@ -210,10 +208,9 @@ public sealed class ToolboxWindow : Window
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
             dl.AddRect(pos, max, Theme.Col(Theme.GoldColor with { W = 0.7f }), 4, ImDrawFlags.None, 2);
 
-            ImGui.BeginTooltip();
+            using var tip = ImRaii.Tooltip();
             var name = _activeProfile?.Name ?? Globals.Profiles.Data?.Characters?.FirstOrDefault(c => c.Id == _activeProfileId)?.Name ?? "No Profile";
             ImGui.TextColored(Theme.LabelColor, name);
-            ImGui.EndTooltip();
         }
     }
 
@@ -228,12 +225,13 @@ public sealed class ToolboxWindow : Window
         if (active)
             dl.AddRectFilled(pos + new Vector2(1), max - new Vector2(1), Theme.Col(Theme.LabelColor with { W = 0.08f }), 3);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        var iconStr = icon.ToIconString();
-        var sz = ImGui.CalcTextSize(iconStr);
-        var col = disabled ? Theme.LabelColorDim with { W = 0.4f } : active ? Theme.LabelColor : Theme.LabelColorDim;
-        dl.AddText(pos + (new Vector2(IconSize) - sz) / 2, Theme.Col(col), iconStr);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconStr = icon.ToIconString();
+            var sz = ImGui.CalcTextSize(iconStr);
+            var col = disabled ? Theme.LabelColorDim with { W = 0.4f } : active ? Theme.LabelColor : Theme.LabelColorDim;
+            dl.AddText(pos + (new Vector2(IconSize) - sz) / 2, Theme.Col(col), iconStr);
+        }
 
         ImGui.SetCursorScreenPos(pos);
         if (disabled)
@@ -268,79 +266,78 @@ public sealed class ToolboxWindow : Window
     void DrawICPopup()
     {
         ImGui.SetNextWindowSize(new Vector2(260, 0), ImGuiCond.Always);
-        if (!ImGui.BeginPopup("##toolbox_ic")) return;
+        using var popup = ImRaii.Popup("##toolbox_ic");
+        if (!popup.Success) return;
 
         ImGui.TextColored(Theme.LabelColor, "IC Status");
         ImGui.Separator();
 
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-        ImGui.InputTextMultiline("##icedit", ref _icEdit, 150, new Vector2(244, 70));
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            ImGui.InputTextMultiline("##icedit", ref _icEdit, 150, new Vector2(244, 70));
 
         ImGui.Spacing();
 
         var changed = _icEdit != (_activeProfile?.CurrentStatus ?? "");
-        if (!changed) ImGui.BeginDisabled();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+        using (ImRaii.Disabled(!changed))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            SaveField("ic");
-            Sound.PlaySuccess();
-            ImGui.CloseCurrentPopup();
+            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+            {
+                SaveField("ic");
+                Sound.PlaySuccess();
+                ImGui.CloseCurrentPopup();
+            }
         }
-        ImGui.PopStyleColor(2);
-        if (!changed) ImGui.EndDisabled();
 
         ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
-        ImGui.PopStyleColor(2);
-
-        ImGui.EndPopup();
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+            .Push(ImGuiCol.Text, Theme.LabelColor))
+        {
+            if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
+        }
     }
 
     void DrawOOCPopup()
     {
         ImGui.SetNextWindowSize(new Vector2(260, 0), ImGuiCond.Always);
-        if (!ImGui.BeginPopup("##toolbox_ooc")) return;
+        using var popup = ImRaii.Popup("##toolbox_ooc");
+        if (!popup.Success) return;
 
         ImGui.TextColored(Theme.LabelColor, "OOC Notes");
         ImGui.Separator();
 
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-        ImGui.InputTextMultiline("##oocedit", ref _oocEdit, 250, new Vector2(244, 70));
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            ImGui.InputTextMultiline("##oocedit", ref _oocEdit, 250, new Vector2(244, 70));
 
         ImGui.Spacing();
 
         var changed = _oocEdit != (_activeProfile?.PlayerNotes ?? "");
-        if (!changed) ImGui.BeginDisabled();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+        using (ImRaii.Disabled(!changed))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            SaveField("ooc");
-            Sound.PlaySuccess();
-            ImGui.CloseCurrentPopup();
+            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+            {
+                SaveField("ooc");
+                Sound.PlaySuccess();
+                ImGui.CloseCurrentPopup();
+            }
         }
-        ImGui.PopStyleColor(2);
-        if (!changed) ImGui.EndDisabled();
 
         ImGui.SameLine();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
-        ImGui.PopStyleColor(2);
-
-        ImGui.EndPopup();
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+            .Push(ImGuiCol.Text, Theme.LabelColor))
+        {
+            if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
+        }
     }
 
     void DrawIconPickerPopup()
     {
         ImGui.SetNextWindowSize(new Vector2(320, 0), ImGuiCond.Always);
-        if (!ImGui.BeginPopup("##toolbox_icon")) return;
+        using var popup = ImRaii.Popup("##toolbox_icon");
+        if (!popup.Success) return;
 
         ImGui.TextColored(Theme.LabelColor, "Nameplate Icon");
         ImGui.Separator();
@@ -350,16 +347,17 @@ public sealed class ToolboxWindow : Window
 
         if (current > 0)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-            if (ImGui.Button("Reset to Default", new Vector2(-1, 22)))
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                .Push(ImGuiCol.Text, Theme.LabelColor))
             {
-                Globals.Config.NameplateCustomIconId = 0;
-                Globals.Config.Save();
-                Sound.PlayClick();
-                ImGui.CloseCurrentPopup();
+                if (ImGui.Button("Reset to Default", new Vector2(-1, 22)))
+                {
+                    Globals.Config.NameplateCustomIconId = 0;
+                    Globals.Config.Save();
+                    Sound.PlayClick();
+                    ImGui.CloseCurrentPopup();
+                }
             }
-            ImGui.PopStyleColor(2);
             ImGui.Spacing();
         }
 
@@ -379,16 +377,16 @@ public sealed class ToolboxWindow : Window
         ImGui.Separator();
         ImGui.Spacing();
 
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextMuted);
-        ImGui.TextWrapped(
-            "This icon replaces the default RPHub nameplate icon for players " +
-            "who have set their status to Role-playing (/roleplaying) or have " +
-            "the RP tag active. Changes may take a moment to appear as " +
-            "nameplates refresh periodically.");
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.TextMuted))
+        {
+            ImGui.TextWrapped(
+                "This icon replaces the default RPHub nameplate icon for players " +
+                "who have set their status to Role-playing (/roleplaying) or have " +
+                "the RP tag active. Changes may take a moment to appear as " +
+                "nameplates refresh periodically.");
+        }
 
         ImGui.Spacing();
-        ImGui.EndPopup();
     }
 
     void DrawIconGrid(RpIcons.IconEntry[] icons, int currentId, string prefix)

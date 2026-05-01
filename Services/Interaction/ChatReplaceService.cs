@@ -1,5 +1,6 @@
 namespace Glance.Services;
 
+using Dalamud.Game.Chat;
 using Dalamud.Game.Text;
 using Dalamud.Game.Text.SeStringHandling;
 using Dalamud.Game.Text.SeStringHandling.Payloads;
@@ -25,19 +26,19 @@ public sealed class ChatReplaceService : IDisposable
 
     public ChatReplaceService() => Globals.ChatGui.ChatMessage += OnChat;
 
-    void OnChat(XivChatType type, int ts, ref SeString sender, ref SeString msg, ref bool handled)
+    void OnChat(IHandleableChatMessage msg)
     {
-        if (!Enabled || !IsRpChat(type)) return;
+        if (!Enabled || !IsRpChat(msg.LogKind)) return;
 
         try
         {
-            var senderText = sender.TextValue;
+            var senderText = msg.Sender.TextValue;
             if (string.IsNullOrEmpty(senderText)) return;
 
             var replacementName = GetReplacementName(senderText);
             if (replacementName == null) return;
 
-            sender = ReplaceTextPayloads(sender, replacementName);
+            msg.Sender = ReplaceTextPayloads(msg.Sender, replacementName);
         }
         catch { }
     }
@@ -74,7 +75,7 @@ public sealed class ChatReplaceService : IDisposable
     {
         var me = Globals.PlayerState;
         var myFullName = me?.CharacterName.ToString();
-        var myWorld = me?.HomeWorld.Value.Name.ExtractText();
+        var myWorld = me?.HomeWorld.Value.Name.ToString();
 
         var activeId = Globals.Profiles.ActiveProfileId;
         var myProfile = activeId != null

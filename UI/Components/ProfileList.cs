@@ -2,6 +2,7 @@ namespace Glance.UI.Components;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using Glance.Models;
@@ -69,11 +70,12 @@ public static class ProfileList
         else
         {
             dl.AddRectFilled(ap, am, Theme.Col(Theme.PlaceholderBg), 4f);
-            ImGui.PushFont(UiBuilder.IconFont);
-            var icon = FontAwesomeIcon.User.ToIconString();
-            var isz = ImGui.CalcTextSize(icon);
-            dl.AddText(ImGui.GetFont(), ImGui.GetFontSize(), ap + (new Vector2(avatar, avatar) - isz) / 2, Theme.Col(Theme.LabelColorDim), icon);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var icon = FontAwesomeIcon.User.ToIconString();
+                var isz = ImGui.CalcTextSize(icon);
+                dl.AddText(ImGui.GetFont(), ImGui.GetFontSize(), ap + (new Vector2(avatar, avatar) - isz) / 2, Theme.Col(Theme.LabelColorDim), icon);
+            }
         }
         dl.AddRect(ap, am, Theme.Col(Theme.FrameBorderInner), 4f);
 
@@ -87,11 +89,12 @@ public static class ProfileList
 
         if (active)
         {
-            ImGui.PushFont(UiBuilder.IconFont);
-            var chk = FontAwesomeIcon.CheckCircle.ToIconString();
-            var csz = ImGui.CalcTextSize(chk);
-            dl.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(max.X - pad - csz.X, pos.Y + (h - csz.Y) / 2), Theme.Col(Theme.Primary), chk);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var chk = FontAwesomeIcon.CheckCircle.ToIconString();
+                var csz = ImGui.CalcTextSize(chk);
+                dl.AddText(ImGui.GetFont(), ImGui.GetFontSize(), new Vector2(max.X - pad - csz.X, pos.Y + (h - csz.Y) / 2), Theme.Col(Theme.Primary), chk);
+            }
         }
 
         ImGui.SetCursorScreenPos(pos);
@@ -136,23 +139,25 @@ public static class ProfileList
 
         var w = ImGui.GetContentRegionAvail().X;
         ImGui.SetCursorPosX((w - 140) / 2);
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button("Create Profile", new Vector2(140, 32))) { ProfileEditor.OpenForCreate(); }
-        ImGui.PopStyleColor(3);
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
+            .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
+        {
+            if (ImGui.Button("Create Profile", new Vector2(140, 32))) { ProfileEditor.OpenForCreate(); }
+        }
     }
 
     static void Centered(FontAwesomeIcon icon, string? text, Vector4 col, float scale = 1f)
     {
         var w = ImGui.GetContentRegionAvail().X;
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(scale);
-        var ic = icon.ToIconString();
-        ImGui.SetCursorPosX((w - ImGui.CalcTextSize(ic).X) / 2);
-        ImGui.TextColored(col, ic);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(scale);
+            var ic = icon.ToIconString();
+            ImGui.SetCursorPosX((w - ImGui.CalcTextSize(ic).X) / 2);
+            ImGui.TextColored(col, ic);
+            ImGui.SetWindowFontScale(1f);
+        }
         if (text != null) { UI.Space(8); Theme.Centered(text, col); }
     }
 
@@ -169,7 +174,7 @@ public static class ProfileList
             {
                 if (Globals.Objects.LocalPlayer is not { } lp) return;
                 name = lp.Name.TextValue;
-                world = lp.HomeWorld.Value.Name.ExtractText();
+                world = lp.HomeWorld.Value.Name.ToString();
             });
 
             if (name == null || world == null) return;
@@ -201,7 +206,7 @@ public static class ProfileList
         {
             if (Globals.Objects.LocalPlayer is not { } lp) return;
             name = lp.Name.TextValue;
-            world = lp.HomeWorld.Value.Name.ExtractText();
+            world = lp.HomeWorld.Value.Name.ToString();
         });
 
         if (name == null || world == null) return;
@@ -219,7 +224,7 @@ public static class ProfileList
         {
             if (Globals.Objects.LocalPlayer is not { } lp) return;
             name = lp.Name.TextValue;
-            world = lp.HomeWorld.Value.Name.ExtractText();
+            world = lp.HomeWorld.Value.Name.ToString();
         });
         if (name == null || world == null) return;
         var cached = await Globals.Cache.FetchProfileAsync(name, world);
@@ -270,20 +275,17 @@ public static class ProfileList
         ImGui.SetCursorPosX((w - btnW) / 2);
 
         var fetching = Globals.Auth.IsFetching;
-        if (fetching) ImGui.BeginDisabled();
-
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover);
-
-        var btnText = fetching ? "Checking..." : "Check Again";
-
-        if (ImGui.Button(btnText, new Vector2(btnW, 36)))
+        using (ImRaii.Disabled(fetching))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover))
         {
-            _ = Globals.Auth.RefreshBeaconTokenAsync();
-            Sound.PlayConfirm();
-        }
+            var btnText = fetching ? "Checking..." : "Check Again";
 
-        ImGui.PopStyleColor(2);
-        if (fetching) ImGui.EndDisabled();
+            if (ImGui.Button(btnText, new Vector2(btnW, 36)))
+            {
+                _ = Globals.Auth.RefreshBeaconTokenAsync();
+                Sound.PlayConfirm();
+            }
+        }
     }
 }

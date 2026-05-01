@@ -2,11 +2,14 @@ namespace Glance.Services;
 
 using Dalamud.Game.Gui.NamePlate;
 using Dalamud.Utility;
+using FFXIVClientStructs.FFXIV.Client.UI;
+using FFXIVClientStructs.FFXIV.Component.GUI;
 using Glance.Core;
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 
-public sealed class NameplateService : IDisposable
+public sealed unsafe class NameplateService : IDisposable
 {
     const int RpStatusIcon = 61595;
     const int RpStatusIcon1 = 61545;
@@ -26,13 +29,12 @@ public sealed class NameplateService : IDisposable
 
             var iconId = handler.NameIconId;
             var isRoleplaying = iconId == RpStatusIcon || iconId == RpStatusIcon1;
+            var name = pc.Name.TextValue;
+            var world = pc.HomeWorld.Value.Name.ToString();
+            var profile = Globals.Cache.GetProfile(name, world);
 
-            // text + icon swap only, tinting handled by NameplateNodeService
             if (isRoleplaying)
             {
-                var name = pc.Name.TextValue;
-                var world = pc.HomeWorld.Value.Name.ExtractText();
-                var profile = Globals.Cache.GetProfile(name, world);
                 var isSelf = lp != null && name == lp.Name.TextValue;
                 var customIcon = isSelf
                     ? config.NameplateCustomIconId
@@ -56,7 +58,40 @@ public sealed class NameplateService : IDisposable
                     }
                 }
             }
+
+            var np = (AddonNamePlate.NamePlateObject*)handler.NamePlateObjectAddress;
+            var iconNode = np != null ? np->NameIcon : null;
+            if (iconNode == null) continue;
+
+            var shouldTint = config.NameplateTintEnabled
+                && profile?.Data != null
+                && (!config.NameplateIconOnlyWhenRoleplaying || isRoleplaying);
+
+            if (shouldTint)
+                ApplyColor(iconNode, profile!.Unverified ? config.NameplateUnverifiedColor : config.NameplateVerifiedColor);
+            else
+                ResetColor(iconNode);
         }
+    }
+
+    static void ApplyColor(AtkImageNode* node, Vector4 c)
+    {
+        node->AtkResNode.MultiplyRed = 25;
+        node->AtkResNode.MultiplyGreen = 25;
+        node->AtkResNode.MultiplyBlue = 25;
+        node->AtkResNode.AddRed = (short)(c.X * 200);
+        node->AtkResNode.AddGreen = (short)(c.Y * 200);
+        node->AtkResNode.AddBlue = (short)(c.Z * 200);
+    }
+
+    static void ResetColor(AtkImageNode* node)
+    {
+        node->AtkResNode.MultiplyRed = 100;
+        node->AtkResNode.MultiplyGreen = 100;
+        node->AtkResNode.MultiplyBlue = 100;
+        node->AtkResNode.AddRed = 0;
+        node->AtkResNode.AddGreen = 0;
+        node->AtkResNode.AddBlue = 0;
     }
 
     public void Dispose() => Globals.NamePlateGui.OnNamePlateUpdate -= OnNamePlateUpdate;

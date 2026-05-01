@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using Glance.Models;
@@ -67,29 +68,29 @@ public static class NearbyTab
         var w = ImGui.GetContentRegionAvail().X;
         var startPos = ImGui.GetCursorScreenPos();
 
-        ImGui.BeginGroup();
+        using (ImRaii.Group())
         using (Globals.Fonts.Header.Push())
         {
             ImGui.TextColored(Theme.Primary, "Nearby Profiles");
         }
-        ImGui.EndGroup();
 
         ImGui.SameLine(0, 5f);
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(0.9f);
-        ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.QuestionCircle.ToIconString());
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(0.9f);
+            ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.QuestionCircle.ToIconString());
+            ImGui.SetWindowFontScale(1f);
+        }
 
         if (ImGui.IsItemHovered())
         {
-            ImGui.BeginTooltip();
+            using var tip = ImRaii.Tooltip();
             ImGui.TextColored(Theme.GoldColor, "Nearby Discovery");
             ImGui.Separator();
 
             ImGui.BulletText("Shows other Glance users currently in your immediate area.");
 
-            var myWorld = Globals.PlayerState?.CurrentWorld.ValueNullable?.Name.ExtractText() ?? "Unknown";
+            var myWorld = Globals.PlayerState?.CurrentWorld.ValueNullable?.Name.ToString() ?? "Unknown";
             ImGui.BulletText($"Currently tracking users on:");
             ImGui.SameLine();
             ImGui.TextColored(Theme.Primary, myWorld);
@@ -100,8 +101,6 @@ public static class NearbyTab
             ImGui.TextColored(Theme.GoldColor, "Privacy");
             ImGui.Separator();
             ImGui.BulletText("To hide yourself: Disable 'Share Location' in Settings.");
-
-            ImGui.EndTooltip();
         }
 
         var zone = GetZone();
@@ -112,17 +111,17 @@ public static class NearbyTab
         var btnSize = new Vector2(28, 28);
         ImGui.SameLine();
         ImGui.SetCursorPosX(w - zoneSize.X - btnSize.X - 12);
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.4f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        ImGui.PushFont(UiBuilder.IconFont);
-        if (ImGui.Button($"{FontAwesomeIcon.ExternalLinkAlt.ToIconString()}##detach_nearby", btnSize))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.4f })
+            .Push(ImGuiCol.ButtonHovered, Theme.ButtonHovered)
+            .Push(ImGuiCol.Text, Theme.LabelColor))
+        using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            Globals.NearbyWindow.IsOpen = true;
-            Sound.PlayOpen();
+            if (ImGui.Button($"{FontAwesomeIcon.ExternalLinkAlt.ToIconString()}##detach_nearby", btnSize))
+            {
+                Globals.NearbyWindow.IsOpen = true;
+                Sound.PlayOpen();
+            }
         }
-        ImGui.PopFont();
-        ImGui.PopStyleColor(3);
         if (ImGui.IsItemHovered()) ImGui.SetTooltip("Detach to separate window");
 
         ImGui.SameLine();
@@ -145,9 +144,10 @@ public static class NearbyTab
 
     static void DrawPlayerList()
     {
-        var myWorld = Globals.PlayerState?.HomeWorld.ValueNullable?.Name.ExtractText();
+        var myWorld = Globals.PlayerState?.HomeWorld.ValueNullable?.Name.ToString();
 
-        if (ImGui.BeginChild("##playerlist_tab", new Vector2(-1, -1), false, ImGuiWindowFlags.None))
+        using var child = ImRaii.Child("##playerlist_tab", new Vector2(-1, -1), false, ImGuiWindowFlags.None);
+        if (child)
         {
             foreach (var player in _players)
             {
@@ -155,7 +155,6 @@ public static class NearbyTab
                 UI.Space(CardSpacing);
             }
         }
-        ImGui.EndChild();
     }
 
     static void DrawPlayerCard(NearbyPlayer p, string? myWorld)
@@ -195,11 +194,12 @@ public static class NearbyTab
         else
         {
             dl.AddRectFilled(imgPos, imgMax, Theme.Col(Theme.FrameBorderInner with { W = 0.3f }), 4);
-            ImGui.PushFont(UiBuilder.IconFont);
-            var placeholderIcon = FontAwesomeIcon.User.ToIconString();
-            var iconSz = ImGui.CalcTextSize(placeholderIcon);
-            dl.AddText(imgPos + (new Vector2(ImageSize) - iconSz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.5f }), placeholderIcon);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                var placeholderIcon = FontAwesomeIcon.User.ToIconString();
+                var iconSz = ImGui.CalcTextSize(placeholderIcon);
+                dl.AddText(imgPos + (new Vector2(ImageSize) - iconSz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.5f }), placeholderIcon);
+            }
         }
         dl.AddRect(imgPos, imgMax, Theme.Col(Theme.FrameBorder with { W = 0.4f }), 4);
 
@@ -234,9 +234,8 @@ public static class NearbyTab
 
         if (myWorld != null && myWorld != p.World)
         {
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+                ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
             if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{p.Name} is visiting from {p.World}"); 
 
             ImGui.SameLine(0, 4);
@@ -252,17 +251,17 @@ public static class NearbyTab
         var btnPos = new Vector2(startPos.X + w - btnSize.X - 10, startPos.Y + (CardHeight - btnSize.Y) / 2);
         ImGui.SetCursorScreenPos(btnPos);
 
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.6f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.GoldColor with { W = 0.4f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.GoldColor with { W = 0.6f });
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        ImGui.PushFont(UiBuilder.IconFont);
-        if (ImGui.Button($"{FontAwesomeIcon.Crosshairs.ToIconString()}##target_{p.Key}", btnSize))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.6f })
+            .Push(ImGuiCol.ButtonHovered, Theme.GoldColor with { W = 0.4f })
+            .Push(ImGuiCol.ButtonActive, Theme.GoldColor with { W = 0.6f })
+            .Push(ImGuiCol.Text, Theme.LabelColor))
+        using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            TargetPlayer(p.Name, p.World);
+            if (ImGui.Button($"{FontAwesomeIcon.Crosshairs.ToIconString()}##target_{p.Key}", btnSize))
+            {
+                TargetPlayer(p.Name, p.World);
+            }
         }
-        ImGui.PopFont();
-        ImGui.PopStyleColor(4);
         if (ImGui.IsItemHovered())
         {
             ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
@@ -299,7 +298,7 @@ public static class NearbyTab
     {
         var player = Globals.Objects
             .OfType<IPlayerCharacter>()
-            .FirstOrDefault(pc => pc.Name.TextValue == name && pc.HomeWorld.Value.Name.ExtractText() == world);
+            .FirstOrDefault(pc => pc.Name.TextValue == name && pc.HomeWorld.Value.Name.ToString() == world);
 
         if (player != null)
         {
@@ -331,13 +330,14 @@ public static class NearbyTab
         UI.Space(avail.Y * 0.25f);
 
         var centerX = ImGui.GetCursorScreenPos().X + avail.X / 2;
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(2f);
-        var icon = FontAwesomeIcon.BroadcastTower.ToIconString();
-        var iconSize = ImGui.CalcTextSize(icon);
-        dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.LabelColorDim with { W = 0.5f }), icon);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(2f);
+            var icon = FontAwesomeIcon.BroadcastTower.ToIconString();
+            var iconSize = ImGui.CalcTextSize(icon);
+            dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.LabelColorDim with { W = 0.5f }), icon);
+            ImGui.SetWindowFontScale(1f);
+        }
 
         UI.Space(50);
         Theme.Centered("Beacon Not Enabled", Theme.LabelColor);
@@ -358,15 +358,16 @@ public static class NearbyTab
 
         var buttonW = 140f;
         ImGui.SetCursorPosX((avail.X - buttonW) / 2);
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button("Open Settings", new Vector2(buttonW, 30)))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
+            .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            Globals.MainWindow.SetTab(3);
-            Sound.PlayOpen();
+            if (ImGui.Button("Open Settings", new Vector2(buttonW, 30)))
+            {
+                Globals.MainWindow.SetTab(3);
+                Sound.PlayOpen();
+            }
         }
-        ImGui.PopStyleColor(3);
     }
 
     static void DrawUnauthenticated()
@@ -377,13 +378,14 @@ public static class NearbyTab
         UI.Space(avail.Y * 0.3f);
 
         var centerX = ImGui.GetCursorScreenPos().X + avail.X / 2;
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(2f);
-        var icon = FontAwesomeIcon.Lock.ToIconString();
-        var iconSize = ImGui.CalcTextSize(icon);
-        dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.Error with { W = 0.6f }), icon);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(2f);
+            var icon = FontAwesomeIcon.Lock.ToIconString();
+            var iconSize = ImGui.CalcTextSize(icon);
+            dl.AddText(new Vector2(centerX - iconSize.X / 2, ImGui.GetCursorScreenPos().Y), Theme.Col(Theme.Error with { W = 0.6f }), icon);
+            ImGui.SetWindowFontScale(1f);
+        }
 
         UI.Space(40);
         Theme.Centered("Not Logged In", Theme.LabelColor);
@@ -448,7 +450,7 @@ public static class NearbyTab
 
                 var pc = Globals.Objects.OfType<IPlayerCharacter>().FirstOrDefault(x =>
                     x.Name.TextValue.Equals(name, StringComparison.OrdinalIgnoreCase) &&
-                    x.HomeWorld.Value.Name.ExtractText().Equals(world, StringComparison.OrdinalIgnoreCase));
+                    x.HomeWorld.Value.Name.ToString().Equals(world, StringComparison.OrdinalIgnoreCase));
 
                 if (Globals.Config.OnlyShowRenderedPlayers && pc == null)
                     continue;

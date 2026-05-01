@@ -1,6 +1,7 @@
 namespace Glance.UI.Tabs;
 
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using System.Threading.Tasks;
@@ -61,9 +62,8 @@ public static class SettingsTab
         }
         else
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Warning);
-            ImGui.TextWrapped("Beacon is disabled. Nearby features and nameplate icons are unavailable.");
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.Warning))
+                ImGui.TextWrapped("Beacon is disabled. Nearby features and nameplate icons are unavailable.");
         }
 
         var ghostMode = config.GhostMode;
@@ -345,7 +345,11 @@ public static class SettingsTab
             }
         }
 
-        if (changed) config.Save();
+        if (changed)
+        {
+            config.Save();
+            Globals.NamePlateGui.RequestRedraw();
+        }
     }
 
     static string FormatBytes(long bytes)

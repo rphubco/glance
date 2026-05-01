@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using System.Numerics;
@@ -80,11 +81,12 @@ public static class AboutTab
         const float iconCol = 44f;
         const float h = 48f;
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        var iconStr = icon.ToIconString();
-        var iconSz = ImGui.CalcTextSize(iconStr);
-        dl.AddText(p + new Vector2(UI.Lg + (iconCol - iconSz.X) / 2, (h - iconSz.Y) / 2), Theme.Col(Theme.GoldColor), iconStr);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconStr = icon.ToIconString();
+            var iconSz = ImGui.CalcTextSize(iconStr);
+            dl.AddText(p + new Vector2(UI.Lg + (iconCol - iconSz.X) / 2, (h - iconSz.Y) / 2), Theme.Col(Theme.GoldColor), iconStr);
+        }
 
         ImGui.SetCursorScreenPos(p + new Vector2(UI.Lg + iconCol, 6));
         ImGui.TextColored(Theme.LabelColor, title);
@@ -125,18 +127,17 @@ public static class AboutTab
         dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col(hov ? Theme.ButtonHovered : Theme.ButtonBg), 4);
         dl.AddRect(p, p + new Vector2(w, h), Theme.Col(Theme.FrameBorder with { W = hov ? 0.5f : 0.3f }), 4);
 
-        ImGui.PushFont(UiBuilder.IconFont);
+        Vector2 iconSz;
         var iconStr = icon.ToIconString();
-        var iconSz = ImGui.CalcTextSize(iconStr);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            iconSz = ImGui.CalcTextSize(iconStr);
 
         var labelSz = ImGui.CalcTextSize(label);
         var totalW = iconSz.X + 6 + labelSz.X;
         var startX = p.X + (w - totalW) / 2;
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        dl.AddText(new Vector2(startX, p.Y + (h - iconSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColorDim), iconStr);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            dl.AddText(new Vector2(startX, p.Y + (h - iconSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColorDim), iconStr);
         dl.AddText(new Vector2(startX + iconSz.X + 6, p.Y + (h - labelSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), label);
 
         if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);

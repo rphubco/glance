@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Core;
 using Glance.Models;
@@ -57,7 +58,7 @@ public sealed class ProfileTooltipWindow : Window
     {
         if (_name == null || _world == null) return;
         var lp = Globals.Objects.LocalPlayer;
-        if (lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ExtractText()) return;
+        if (lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ToString()) return;
 
         _updateMain = true;
         Globals.MainWindow.UpdateViewedTarget(_name, _world);
@@ -130,7 +131,7 @@ public sealed class ProfileTooltipWindow : Window
         }
 
         var lp = Globals.Objects.LocalPlayer;
-        var isSelf = lp != null && name == lp.Name.TextValue && world == lp.HomeWorld.Value.Name.ExtractText();
+        var isSelf = lp != null && name == lp.Name.TextValue && world == lp.HomeWorld.Value.Name.ToString();
         if (!isSelf && updateMain)
         {
             Globals.MainWindow.UpdateViewedTarget(name, world);
@@ -185,7 +186,7 @@ public sealed class ProfileTooltipWindow : Window
                 }
 
                 var lp = await Globals.Framework.RunOnFrameworkThread(() => Globals.Objects.LocalPlayer);
-                var isSelf = lp != null && name == lp.Name.TextValue && world == lp.HomeWorld.Value.Name.ExtractText();
+                var isSelf = lp != null && name == lp.Name.TextValue && world == lp.HomeWorld.Value.Name.ToString();
                 if (!isSelf && _updateMain)
                 {
                     if (_data != null)
@@ -220,9 +221,11 @@ public sealed class ProfileTooltipWindow : Window
 
     public Task RefreshCurrentTargetAsync() => _name != null && _world != null && IsOpen ? Refresh() : Task.CompletedTask;
 
+    IDisposable? _themeScope;
+
     public override void PreDraw()
     {
-        Theme.PushStyle();
+        _themeScope = Theme.PushStyle();
         ImGui.SetNextWindowSizeConstraints(new Vector2(_windowWidth, 0), new Vector2(_windowWidth, 600));
 
         var vp = ImGui.GetMainViewport();
@@ -234,7 +237,7 @@ public sealed class ProfileTooltipWindow : Window
         ImGui.SetNextWindowPos(pos, ImGuiCond.FirstUseEver);
     }
 
-    public override void PostDraw() => Theme.PopStyle();
+    public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
 
     public override void Draw()
     {
@@ -254,17 +257,19 @@ public sealed class ProfileTooltipWindow : Window
 
     void DrawUnverified()
     {
-        ImGui.BeginGroup();
-        DrawPlaceholder();
-        ImGui.SameLine();
-        ImGui.BeginGroup();
-        using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
-        ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
-        var race = Globals.GetTargetRace();
-        var clan = Globals.GetTargetClan();
-        if (!string.IsNullOrEmpty(race)) ImGui.TextColored(Theme.LabelColor, $"{race} · {clan}");
-        ImGui.EndGroup();
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            DrawPlaceholder();
+            ImGui.SameLine();
+            using (ImRaii.Group())
+            {
+                using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
+                ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
+                var race = Globals.GetTargetRace();
+                var clan = Globals.GetTargetClan();
+                if (!string.IsNullOrEmpty(race)) ImGui.TextColored(Theme.LabelColor, $"{race} · {clan}");
+            }
+        }
 
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
 
@@ -279,37 +284,37 @@ public sealed class ProfileTooltipWindow : Window
     {
         var width = ImGui.GetContentRegionAvail().X;
 
-        ImGui.BeginGroup();
-        DrawImage();
-        ImGui.SameLine();
-
-        ImGui.BeginGroup();
+        using (ImRaii.Group())
         {
-            var name = _data!.Name ?? _name ?? "Unknown";
-            var world = $"@ {_world}";
-            var available = width - ImgSize - Theme.Padding * 2;
+            DrawImage();
+            ImGui.SameLine();
 
-            using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, name);
-            ImGui.TextColored(Theme.WorldColor, world);
-
-            if (!string.IsNullOrEmpty(_data.Description))
+            using (ImRaii.Group())
             {
-                ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + available);
-                ImGui.TextColored(Theme.ValueColor, _data.Description);
-                ImGui.PopTextWrapPos();
+                var name = _data!.Name ?? _name ?? "Unknown";
+                var world = $"@ {_world}";
+                var available = width - ImgSize - Theme.Padding * 2;
+
+                using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, name);
+                ImGui.TextColored(Theme.WorldColor, world);
+
+                if (!string.IsNullOrEmpty(_data.Description))
+                {
+                    ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + available);
+                    ImGui.TextColored(Theme.ValueColor, _data.Description);
+                    ImGui.PopTextWrapPos();
+                }
+
+                var hasCustomRace = !string.IsNullOrEmpty(_data.Race);
+                var race = hasCustomRace ? _data.Race : Globals.GetTargetRace();
+                var clan = !string.IsNullOrEmpty(_data.Clan) ? _data.Clan : (hasCustomRace ? null : Globals.GetTargetClan());
+                if (!string.IsNullOrEmpty(race))
+                    ImGui.TextColored(Theme.LabelColor, !string.IsNullOrEmpty(clan) ? $"{race} · {clan}" : race!);
+
+                if (!string.IsNullOrEmpty(_data.FreeCompany))
+                    ImGui.TextColored(Theme.LabelColorDim, $"<{_data.FreeCompany}>");
             }
-
-            var hasCustomRace = !string.IsNullOrEmpty(_data.Race);
-            var race = hasCustomRace ? _data.Race : Globals.GetTargetRace();
-            var clan = !string.IsNullOrEmpty(_data.Clan) ? _data.Clan : (hasCustomRace ? null : Globals.GetTargetClan());
-            if (!string.IsNullOrEmpty(race))
-                ImGui.TextColored(Theme.LabelColor, !string.IsNullOrEmpty(clan) ? $"{race} · {clan}" : race!);
-
-            if (!string.IsNullOrEmpty(_data.FreeCompany))
-                ImGui.TextColored(Theme.LabelColorDim, $"<{_data.FreeCompany}>");
         }
-        ImGui.EndGroup();
-        ImGui.EndGroup();
 
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
 
@@ -343,17 +348,19 @@ public sealed class ProfileTooltipWindow : Window
 
     void DrawNoProfile()
     {
-        ImGui.BeginGroup();
-        DrawPlaceholder();
-        ImGui.SameLine();
-        ImGui.BeginGroup();
-        using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
-        ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
-        var race = Globals.GetTargetRace();
-        var clan = Globals.GetTargetClan();
-        if (!string.IsNullOrEmpty(race)) ImGui.TextColored(Theme.LabelColor, $"{race} · {clan}");
-        ImGui.EndGroup();
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            DrawPlaceholder();
+            ImGui.SameLine();
+            using (ImRaii.Group())
+            {
+                using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
+                ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
+                var race = Globals.GetTargetRace();
+                var clan = Globals.GetTargetClan();
+                if (!string.IsNullOrEmpty(race)) ImGui.TextColored(Theme.LabelColor, $"{race} · {clan}");
+            }
+        }
 
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
         DrawCentered("No RPHub profile", Theme.LabelColorDim);
@@ -362,14 +369,16 @@ public sealed class ProfileTooltipWindow : Window
 
     void DrawHeader()
     {
-        ImGui.BeginGroup();
-        DrawPlaceholder();
-        ImGui.SameLine();
-        ImGui.BeginGroup();
-        using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
-        ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
-        ImGui.EndGroup();
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            DrawPlaceholder();
+            ImGui.SameLine();
+            using (ImRaii.Group())
+            {
+                using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.NameColor, _name ?? "Unknown");
+                ImGui.TextColored(Theme.WorldColor, $"@ {_world ?? "Unknown"}");
+            }
+        }
 
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
     }
@@ -406,13 +415,14 @@ public sealed class ProfileTooltipWindow : Window
         dl.AddRectFilled(pos, max, Theme.Col(Theme.PlaceholderBg), 4f);
         dl.AddRect(pos, max, Theme.Col(Theme.FrameBorderInner), 4f);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.SetWindowFontScale(1.5f);
-        var icon = FontAwesomeIcon.User.ToIconString();
-        var size = ImGui.CalcTextSize(icon);
-        dl.AddText(pos + (new Vector2(ImgSize, ImgHeight) - size) / 2, Theme.Col(Theme.LabelColorDim), icon);
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(1.5f);
+            var icon = FontAwesomeIcon.User.ToIconString();
+            var size = ImGui.CalcTextSize(icon);
+            dl.AddText(pos + (new Vector2(ImgSize, ImgHeight) - size) / 2, Theme.Col(Theme.LabelColorDim), icon);
+            ImGui.SetWindowFontScale(1f);
+        }
 
         ImGui.SetCursorScreenPos(pos);
         ImGui.Dummy(new Vector2(ImgSize, ImgHeight));
@@ -433,15 +443,16 @@ public sealed class ProfileTooltipWindow : Window
         dl.AddRectFilled(start, max, Theme.Col(bgColor), 4f);
         dl.AddRect(start, max, Theme.Col(labelColor with { W = 0.4f }), 4f);
 
-        ImGui.BeginGroup();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4);
-        ImGui.TextColored(labelColor, label);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
-        ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2);
-        ImGui.TextColored(Theme.ValueColor, text);
-        ImGui.PopTextWrapPos();
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4);
+            ImGui.TextColored(labelColor, label);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
+            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2);
+            ImGui.TextColored(Theme.ValueColor, text);
+            ImGui.PopTextWrapPos();
+        }
 
         ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4));
     }
@@ -455,48 +466,50 @@ public sealed class ProfileTooltipWindow : Window
 
         if (_data != null && !_refreshing)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f });
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.ButtonHovered);
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-            if (ImGui.SmallButton("View Profile"))
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f })
+                .Push(ImGuiCol.ButtonHovered, Theme.ButtonHovered)
+                .Push(ImGuiCol.Text, Theme.LabelColor))
             {
-                if (_name != null && _world != null)
+                if (ImGui.SmallButton("View Profile"))
                 {
-                    var lp = Globals.Objects.LocalPlayer;
-                    var isSelf = lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ExtractText();
-                    if (isSelf)
-                        Globals.MainWindow.ShowProfile();
-                    else
-                        Globals.MainWindow.ShowTarget(_name, _world);
+                    if (_name != null && _world != null)
+                    {
+                        var lp = Globals.Objects.LocalPlayer;
+                        var isSelf = lp != null && _name == lp.Name.TextValue && _world == lp.HomeWorld.Value.Name.ToString();
+                        if (isSelf)
+                            Globals.MainWindow.ShowProfile();
+                        else
+                            Globals.MainWindow.ShowTarget(_name, _world);
+                    }
                 }
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open full profile view");
             }
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Open full profile view");
-            ImGui.PopStyleColor(3);
 
             var lpMute = Globals.Objects.LocalPlayer;
-            var isSelfMute = lpMute != null && _name == lpMute.Name.TextValue && _world == lpMute.HomeWorld.Value.Name.ExtractText();
+            var isSelfMute = lpMute != null && _name == lpMute.Name.TextValue && _world == lpMute.HomeWorld.Value.Name.ToString();
             if (!isSelfMute && _profileId != null && int.TryParse(_profileId, out var muteCharId))
             {
                 var isMuted = Globals.Mutes.IsMuted(muteCharId);
                 ImGui.SameLine(0, 4);
-                ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f });
-                ImGui.PushStyleColor(ImGuiCol.ButtonHovered, isMuted ? Theme.Success with { W = 0.4f } : Theme.Error with { W = 0.4f });
-                ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-                if (ImGui.SmallButton(isMuted ? "Unmute" : "Mute"))
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f })
+                    .Push(ImGuiCol.ButtonHovered, isMuted ? Theme.Success with { W = 0.4f } : Theme.Error with { W = 0.4f })
+                    .Push(ImGuiCol.Text, Theme.LabelColor))
                 {
-                    var cid = muteCharId;
-                    if (isMuted)
-                        Task.Run(() => Globals.Mutes.UnmuteAsync(cid));
-                    else
+                    if (ImGui.SmallButton(isMuted ? "Unmute" : "Mute"))
                     {
-                        var muteName = _data?.Name ?? _name;
-                        Task.Run(() => Globals.Mutes.MuteAsync(cid, muteName));
-                        Hide();
+                        var cid = muteCharId;
+                        if (isMuted)
+                            Task.Run(() => Globals.Mutes.UnmuteAsync(cid));
+                        else
+                        {
+                            var muteName = _data?.Name ?? _name;
+                            Task.Run(() => Globals.Mutes.MuteAsync(cid, muteName));
+                            Hide();
+                        }
+                        Sound.PlayClick();
                     }
-                    Sound.PlayClick();
+                    if (ImGui.IsItemHovered()) ImGui.SetTooltip(isMuted ? "Unhide this character" : "You will no longer see this profile.\nTo unmute, check Glance settings.");
                 }
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip(isMuted ? "Unhide this character" : "You will no longer see this profile.\nTo unmute, check Glance settings.");
-                ImGui.PopStyleColor(3);
             }
         }
         else if (_refreshing) ImGui.TextColored(Theme.LabelColorDim, "Refreshing...");
@@ -578,7 +591,7 @@ public sealed class ProfileTooltipWindow : Window
                 ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                 drawList.AddRect(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.6f }), 12f);
 
-                ImGui.BeginTooltip();
+                using var tip = ImRaii.Tooltip();
                 ImGui.PushTextWrapPos(260f);
                 ImGui.TextColored(Theme.GoldColor, title);
                 if (!string.IsNullOrEmpty(hook.Description))
@@ -587,7 +600,6 @@ public sealed class ProfileTooltipWindow : Window
                     ImGui.TextColored(Theme.ValueColor, hook.Description);
                 }
                 ImGui.PopTextWrapPos();
-                ImGui.EndTooltip();
             }
             ImGui.SetWindowFontScale(1.0f);
         }

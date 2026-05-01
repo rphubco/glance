@@ -1,6 +1,8 @@
 namespace Glance.Utils;
 
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility.Raii;
+using System;
 using System.Numerics;
 
 public static class Theme
@@ -34,41 +36,46 @@ public static class Theme
 
     public const float SmallFont = 0.85f, MediumFont = 1f, Padding = 10f, CornerAccentSize = 6f, CornerAccentSizeLarge = 8f;
 
-    public static void PushStyle()
+    public static IDisposable PushStyle()
     {
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowRounding, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(Padding));
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 2f);
-        ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 2f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(6, 4));
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 2f);
+        var vars = ImRaii.PushStyle(ImGuiStyleVar.WindowRounding, 4f)
+            .Push(ImGuiStyleVar.WindowPadding, new Vector2(Padding))
+            .Push(ImGuiStyleVar.WindowBorderSize, 2f)
+            .Push(ImGuiStyleVar.FrameRounding, 2f)
+            .Push(ImGuiStyleVar.ItemSpacing, new Vector2(6, 4))
+            .Push(ImGuiStyleVar.ChildRounding, 2f);
 
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, FrameBg);
-        ImGui.PushStyleColor(ImGuiCol.Border, FrameBorder);
-        ImGui.PushStyleColor(ImGuiCol.Separator, SeparatorColor);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgHovered, ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.FrameBgActive, ButtonActive);
-        ImGui.PushStyleColor(ImGuiCol.Button, ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, ButtonActive);
-        ImGui.PushStyleColor(ImGuiCol.Header, ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.HeaderHovered, ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.HeaderActive, ButtonActive);
-        ImGui.PushStyleColor(ImGuiCol.Text, ValueColor);
-        ImGui.PushStyleColor(ImGuiCol.TitleBg, FrameBg);
-        ImGui.PushStyleColor(ImGuiCol.TitleBgActive, new Vector4(0.15f, 0.14f, 0.12f, 1));
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.09f, 0.09f, 0.09f, 0.5f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.08f, 0.08f, 0.08f, 0.5f));
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrab, FrameBorderInner);
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabHovered, ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.ScrollbarGrabActive, ButtonActive);
-        ImGui.PushStyleColor(ImGuiCol.CheckMark, GoldColor);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrab, GoldColor);
-        ImGui.PushStyleColor(ImGuiCol.SliderGrabActive, NameColor);
+        var colors = ImRaii.PushColor(ImGuiCol.WindowBg, FrameBg)
+            .Push(ImGuiCol.Border, FrameBorder)
+            .Push(ImGuiCol.Separator, SeparatorColor)
+            .Push(ImGuiCol.FrameBg, ButtonBg)
+            .Push(ImGuiCol.FrameBgHovered, ButtonHovered)
+            .Push(ImGuiCol.FrameBgActive, ButtonActive)
+            .Push(ImGuiCol.Button, ButtonBg)
+            .Push(ImGuiCol.ButtonHovered, ButtonHovered)
+            .Push(ImGuiCol.ButtonActive, ButtonActive)
+            .Push(ImGuiCol.Header, ButtonBg)
+            .Push(ImGuiCol.HeaderHovered, ButtonHovered)
+            .Push(ImGuiCol.HeaderActive, ButtonActive)
+            .Push(ImGuiCol.Text, ValueColor)
+            .Push(ImGuiCol.TitleBg, FrameBg)
+            .Push(ImGuiCol.TitleBgActive, new Vector4(0.15f, 0.14f, 0.12f, 1))
+            .Push(ImGuiCol.ChildBg, new Vector4(0.09f, 0.09f, 0.09f, 0.5f))
+            .Push(ImGuiCol.ScrollbarBg, new Vector4(0.08f, 0.08f, 0.08f, 0.5f))
+            .Push(ImGuiCol.ScrollbarGrab, FrameBorderInner)
+            .Push(ImGuiCol.ScrollbarGrabHovered, ButtonHovered)
+            .Push(ImGuiCol.ScrollbarGrabActive, ButtonActive)
+            .Push(ImGuiCol.CheckMark, GoldColor)
+            .Push(ImGuiCol.SliderGrab, GoldColor)
+            .Push(ImGuiCol.SliderGrabActive, NameColor);
+
+        return new Scope(vars, colors);
     }
 
-    public static void PopStyle() { ImGui.PopStyleColor(23); ImGui.PopStyleVar(6); }
+    sealed class Scope(IDisposable vars, IDisposable colors) : IDisposable
+    {
+        public void Dispose() { colors.Dispose(); vars.Dispose(); }
+    }
 
     public static void DrawFrame(float sz = CornerAccentSize)
     {

@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using System;
 using System.Numerics;
@@ -60,32 +61,38 @@ Privacy Policy: https://rphub.co/privacy-policy";
         PositionCondition = ImGuiCond.Always;
     }
 
+    IDisposable? _styleScope;
+    IDisposable? _colorScope;
+
     public override void PreDraw()
     {
         var viewport = ImGui.GetMainViewport();
         var center = viewport.GetCenter();
         Position = new Vector2(center.X - 250, center.Y - 225);
 
-        ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(16, 16));
-        ImGui.PushStyleColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.08f, 0.10f, 0.98f));
-        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.7f, 0.55f, 0.3f, 0.5f));
+        _styleScope = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(16, 16));
+        _colorScope = ImRaii.PushColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.08f, 0.10f, 0.98f))
+            .Push(ImGuiCol.Border, new Vector4(0.7f, 0.55f, 0.3f, 0.5f));
     }
 
     public override void PostDraw()
     {
-        ImGui.PopStyleColor(2);
-        ImGui.PopStyleVar();
+        _colorScope?.Dispose();
+        _colorScope = null;
+        _styleScope?.Dispose();
+        _styleScope = null;
     }
 
     public override void Draw()
     {
         var avail = ImGui.GetContentRegionAvail();
 
-        ImGui.PushFont(UiBuilder.DefaultFont);
-        ImGui.SetWindowFontScale(1.2f);
-        CenteredText("Terms of Service", new Vector4(0.85f, 0.65f, 0.3f, 1f));
-        ImGui.SetWindowFontScale(1f);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.DefaultFont))
+        {
+            ImGui.SetWindowFontScale(1.2f);
+            CenteredText("Terms of Service", new Vector4(0.85f, 0.65f, 0.3f, 1f));
+            ImGui.SetWindowFontScale(1f);
+        }
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -102,31 +109,30 @@ Privacy Policy: https://rphub.co/privacy-policy";
         ImGui.Spacing();
 
         var boxHeight = avail.Y - 110;
-        ImGui.PushStyleColor(ImGuiCol.ChildBg, new Vector4(0.05f, 0.05f, 0.07f, 1f));
-        ImGui.PushStyleColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f));
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildRounding, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.ChildBorderSize, 1f);
-
-        if (ImGui.BeginChild("##TosScroll", new Vector2(-1, boxHeight), true, ImGuiWindowFlags.AlwaysVerticalScrollbar))
+        using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.05f, 0.05f, 0.07f, 1f)))
+        using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f)))
+        using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f))
+        using (ImRaii.PushStyle(ImGuiStyleVar.ChildBorderSize, 1f))
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.85f, 0.85f, 0.85f, 1f));
-            ImGui.SetWindowFontScale(0.95f);
-            ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X - 8);
-            ImGui.TextWrapped(TOS_TEXT);
-            ImGui.PopTextWrapPos();
-            ImGui.SetWindowFontScale(1f);
-            ImGui.PopStyleColor();
+            using var child = ImRaii.Child("##TosScroll", new Vector2(-1, boxHeight), true, ImGuiWindowFlags.AlwaysVerticalScrollbar);
+            if (child)
+            {
+                using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(0.85f, 0.85f, 0.85f, 1f)))
+                {
+                    ImGui.SetWindowFontScale(0.95f);
+                    ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X - 8);
+                    ImGui.TextWrapped(TOS_TEXT);
+                    ImGui.PopTextWrapPos();
+                    ImGui.SetWindowFontScale(1f);
+                }
 
-            _scrollY = ImGui.GetScrollY();
-            _maxScroll = ImGui.GetScrollMaxY();
+                _scrollY = ImGui.GetScrollY();
+                _maxScroll = ImGui.GetScrollMaxY();
 
-            if (_maxScroll > 0 && _scrollY >= _maxScroll - 10f)
-                _hasScrolledToBottom = true;
+                if (_maxScroll > 0 && _scrollY >= _maxScroll - 10f)
+                    _hasScrolledToBottom = true;
+            }
         }
-        ImGui.EndChild();
-
-        ImGui.PopStyleVar(2);
-        ImGui.PopStyleColor(2);
 
         ImGui.Spacing();
 
@@ -138,40 +144,32 @@ Privacy Policy: https://rphub.co/privacy-policy";
 
         ImGui.SetCursorPosX(startX);
 
-        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.15f, 0.15f, 0.8f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.2f, 0.2f, 0.9f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.25f, 0.25f, 1f));
-        if (ImGui.Button("Decline", new Vector2(buttonWidth, buttonHeight)))
-            IsOpen = false;
-        ImGui.PopStyleColor(3);
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.3f, 0.15f, 0.15f, 0.8f)))
+        using (ImRaii.PushColor(ImGuiCol.ButtonHovered, new Vector4(0.5f, 0.2f, 0.2f, 0.9f)))
+        using (ImRaii.PushColor(ImGuiCol.ButtonActive, new Vector4(0.6f, 0.25f, 0.25f, 1f)))
+        {
+            if (ImGui.Button("Decline", new Vector2(buttonWidth, buttonHeight)))
+                IsOpen = false;
+        }
 
         ImGui.SameLine(0, spacing);
 
-        if (_hasScrolledToBottom)
+        var accepted = _hasScrolledToBottom;
+        var muted = new Vector4(0.2f, 0.2f, 0.2f, 0.5f);
+        using (ImRaii.PushColor(ImGuiCol.Button, accepted ? new Vector4(0.2f, 0.4f, 0.2f, 0.9f) : muted)
+            .Push(ImGuiCol.ButtonHovered, accepted ? new Vector4(0.25f, 0.5f, 0.25f, 1f) : muted)
+            .Push(ImGuiCol.ButtonActive, accepted ? new Vector4(0.3f, 0.6f, 0.3f, 1f) : muted)
+            .Push(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 0.6f), !accepted))
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.4f, 0.2f, 0.9f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.25f, 0.5f, 0.25f, 1f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.3f, 0.6f, 0.3f, 1f));
-            if (ImGui.Button("I Accept", new Vector2(buttonWidth, buttonHeight)))
+            if (ImGui.Button("I Accept", new Vector2(buttonWidth, buttonHeight)) && accepted)
             {
                 _accepted = true;
                 IsOpen = false;
                 OnAccepted?.Invoke();
             }
-            ImGui.PopStyleColor(3);
         }
-        else
-        {
-            ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.2f, 0.2f, 0.2f, 0.5f));
-            ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(0.5f, 0.5f, 0.5f, 0.6f));
-            ImGui.Button("I Accept", new Vector2(buttonWidth, buttonHeight));
-            ImGui.PopStyleColor(4);
-
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Please scroll to the bottom to enable this button");
-        }
+        if (!accepted && ImGui.IsItemHovered())
+            ImGui.SetTooltip("Please scroll to the bottom to enable this button");
     }
 
     void CenteredText(string text, Vector4 color)

@@ -31,7 +31,7 @@ public sealed class ProfileService
             if (Globals.Objects.LocalPlayer is not { } p) return;
             hash = IdentityHash.Hash(Globals.PlayerState.ContentId);
             name = p.Name.TextValue;
-            world = p.HomeWorld.Value.Name.ExtractText();
+            world = p.HomeWorld.Value.Name.ToString();
         });
 
         Globals.Log.Info($"[Profiles] FetchProfilesAsync: name={name}, world={world}");

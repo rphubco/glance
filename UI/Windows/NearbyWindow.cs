@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
 using Glance.UI.Tabs;
+using System;
 using System.Numerics;
 
 public sealed class NearbyWindow : Window
@@ -24,8 +25,9 @@ public sealed class NearbyWindow : Window
         };
     }
 
-    public override void PreDraw() => Theme.PushStyle();
-    public override void PostDraw() => Theme.PopStyle();
+    IDisposable? _themeScope;
+    public override void PreDraw() => _themeScope = Theme.PushStyle();
+    public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
 
     public override void Draw()
     {

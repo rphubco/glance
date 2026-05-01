@@ -4,6 +4,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using Glance.Models;
@@ -102,22 +103,21 @@ public static class ProfileEditor
 
         if (edit.Errors.Count > 0)
         {
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Error);
-            foreach (var e in edit.Errors) ImGui.TextWrapped($"• {e}");
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.Text, Theme.Error))
+                foreach (var e in edit.Errors) ImGui.TextWrapped($"• {e}");
             UI.Space();
         }
 
         DrawTabs();
         UI.Space();
 
-        if (ImGui.BeginChild("##editscroll", new Vector2(-1, -1)))
+        using var scroll = ImRaii.Child("##editscroll", new Vector2(-1, -1));
+        if (scroll)
         {
             if (_tab == 0) DrawGeneral(edit);
             else if (_tab == 1) DrawAbout(edit);
             else DrawHooks(edit);
         }
-        ImGui.EndChild();
     }
 
     static void DrawHeader(ProfileEditService edit, string? name, string? world, Action? onSaved, Action? onCancelled)
@@ -135,48 +135,49 @@ public static class ProfileEditor
         var btnX = p.X + w - 12;
 
         ImGui.SetCursorScreenPos(new Vector2(btnX - 70, p.Y + 10));
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f });
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Cancel", new Vector2(70, 30)))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+            .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f })
+            .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            edit.Discard();
-            Cleanup();
-            _active = false;
-            onCancelled?.Invoke();
+            if (ImGui.Button("Cancel", new Vector2(70, 30)))
+            {
+                edit.Discard();
+                Cleanup();
+                _active = false;
+                onCancelled?.Invoke();
+            }
         }
-        ImGui.PopStyleColor(3);
 
         ImGui.SetCursorScreenPos(new Vector2(btnX - 150, p.Y + 10));
         var dirty = edit.IsDirty || _createMode;
-        if (!dirty) ImGui.BeginDisabled();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button(edit.IsSaving ? "Saving..." : (_createMode ? "Publish" : "Save"), new Vector2(70, 30)) && !edit.IsSaving)
+        using (ImRaii.Disabled(!dirty))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+            .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
+            .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            _saveErr = "";
-            _ = Task.Run(async () =>
+            if (ImGui.Button(edit.IsSaving ? "Saving..." : (_createMode ? "Publish" : "Save"), new Vector2(70, 30)) && !edit.IsSaving)
             {
-                var (ok, err) = await edit.SaveAsync();
-                if (ok)
+                _saveErr = "";
+                _ = Task.Run(async () =>
                 {
-                    if (name != null && world != null)
-                        await Globals.Cache.RefreshProfileAsync(name, world);
-                    _active = false;
-                    Cleanup();
-                    onSaved?.Invoke();
-                    Sound.PlaySuccess();
-                }
-                else
-                {
-                    _saveErr = err ?? "Save failed";
-                    Sound.PlayError();
-                }
-            });
+                    var (ok, err) = await edit.SaveAsync();
+                    if (ok)
+                    {
+                        if (name != null && world != null)
+                            await Globals.Cache.RefreshProfileAsync(name, world);
+                        _active = false;
+                        Cleanup();
+                        onSaved?.Invoke();
+                        Sound.PlaySuccess();
+                    }
+                    else
+                    {
+                        _saveErr = err ?? "Save failed";
+                        Sound.PlayError();
+                    }
+                });
+            }
         }
-        ImGui.PopStyleColor(3);
-        if (!dirty) ImGui.EndDisabled();
 
         if (!string.IsNullOrEmpty(_saveErr))
         {
@@ -197,17 +198,18 @@ public static class ProfileEditor
         {
             if (i > 0) ImGui.SameLine(0, UI.Xs);
             var sel = _tab == i;
-            ImGui.PushStyleColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor);
-            if (ImGui.Button(tabs[i], new Vector2(tw, 28)))
+            using (ImRaii.PushColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg)
+                .Push(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor))
             {
-                if (_tab != i)
+                if (ImGui.Button(tabs[i], new Vector2(tw, 28)))
                 {
-                    _tab = i;
-                    Sound.PlayClick();
+                    if (_tab != i)
+                    {
+                        _tab = i;
+                        Sound.PlayClick();
+                    }
                 }
             }
-            ImGui.PopStyleColor(2);
         }
     }
 
@@ -261,36 +263,38 @@ public static class ProfileEditor
 
         ImGui.SetCursorScreenPos(imgP + new Vector2(0, imgSz + UI.Sm));
 
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Change Image", new Vector2(imgSz, 24)))
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+            .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            _fileDialogManager.OpenFileDialog(
-                "Select Portrait",
-                ".png,.jpg,.jpeg,.webp,.gif",
-                (bool ok, string path) =>
-                {
-                    if (!ok || string.IsNullOrEmpty(path)) return;
-                    try
+            if (ImGui.Button("Change Image", new Vector2(imgSz, 24)))
+            {
+                _fileDialogManager.OpenFileDialog(
+                    "Select Portrait",
+                    ".png,.jpg,.jpeg,.webp,.gif",
+                    (bool ok, string path) =>
                     {
-                        if (File.Exists(path))
+                        if (!ok || string.IsNullOrEmpty(path)) return;
+                        try
                         {
-                            var (success, err) = edit.StageImage(File.ReadAllBytes(path), Path.GetFileName(path));
-                            _imageErr = success ? "" : (err ?? "Failed");
+                            if (File.Exists(path))
+                            {
+                                var (success, err) = edit.StageImage(File.ReadAllBytes(path), Path.GetFileName(path));
+                                _imageErr = success ? "" : (err ?? "Failed");
+                            }
                         }
+                        catch (Exception ex) { _imageErr = ex.Message; }
                     }
-                    catch (Exception ex) { _imageErr = ex.Message; }
-                }
-            );
+                );
+            }
         }
-        ImGui.PopStyleColor(2);
 
         if (edit.HasPendingImage)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.Error with { W = 0.3f });
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Error);
-            if (ImGui.Button("Clear##img", new Vector2(imgSz, 20))) { edit.ClearPendingImage(); _pendingTex?.Dispose(); _pendingTex = null; _loadedImgBytes = null; }
-            ImGui.PopStyleColor(2);
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                .Push(ImGuiCol.Text, Theme.Error))
+            {
+                if (ImGui.Button("Clear##img", new Vector2(imgSz, 20))) { edit.ClearPendingImage(); _pendingTex?.Dispose(); _pendingTex = null; _loadedImgBytes = null; }
+            }
         }
 
         if (!string.IsNullOrEmpty(_imageErr))
@@ -313,15 +317,16 @@ public static class ProfileEditor
         ImGui.BeginGroup();
         ImGui.TextColored(Theme.LabelColor, "Race");
         ImGui.SetNextItemWidth(fieldW * 0.5f);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races))
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
         {
-            draft.Race = RaceData.Races[_raceIdx];
-            _clanIdx = 0;
-            if (RaceData.Clans.TryGetValue(draft.Race, out var c) && c.Length > 0)
-                draft.Clan = c[0];
+            if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races))
+            {
+                draft.Race = RaceData.Races[_raceIdx];
+                _clanIdx = 0;
+                if (RaceData.Clans.TryGetValue(draft.Race, out var c) && c.Length > 0)
+                    draft.Clan = c[0];
+            }
         }
-        ImGui.PopStyleColor();
 
         if (!RaceData.IsStandardRace(draft.Race))
         {
@@ -339,14 +344,14 @@ public static class ProfileEditor
         ImGui.BeginGroup();
         ImGui.TextColored(Theme.LabelColor, "Clan");
         ImGui.SetNextItemWidth(fieldW * 0.35f);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
 
         if (_raceIdx >= 0 && _raceIdx < RaceData.Races.Length && RaceData.Clans.TryGetValue(RaceData.Races[_raceIdx], out var clans))
         {
-            if (ImGui.Combo("##clan", ref _clanIdx, clans))
-                draft.Clan = clans[_clanIdx];
-
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+            {
+                if (ImGui.Combo("##clan", ref _clanIdx, clans))
+                    draft.Clan = clans[_clanIdx];
+            }
 
             if (draft.Clan == RaceData.CustomRace || (!clans.Contains(draft.Clan) && !string.IsNullOrEmpty(draft.Clan)))
             {
@@ -356,10 +361,6 @@ public static class ProfileEditor
                 if (ImGui.InputTextWithHint("##customClan", "Enter Custom Clan...", ref customClan, 32))
                     draft.Clan = customClan;
             }
-        }
-        else
-        {
-            ImGui.PopStyleColor();
         }
         ImGui.EndGroup();
 
@@ -385,26 +386,29 @@ public static class ProfileEditor
         UI.Space();
 
         ImGui.TextColored(Theme.LabelColor, "Details (Auto-wrapping is not supported in Dalamud, use new lines.)");
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        var details = draft.Details ?? "";
-        if (ImGui.InputTextMultiline("##details", ref details, 500, new Vector2(w, 100), ImGuiInputTextFlags.None)) draft.Details = details;
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        {
+            var details = draft.Details ?? "";
+            if (ImGui.InputTextMultiline("##details", ref details, 500, new Vector2(w, 100), ImGuiInputTextFlags.None)) draft.Details = details;
+        }
 
         UI.Space();
 
         ImGui.TextColored(Theme.LabelColor, "Current Status (IC)");
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        var status = draft.CurrentStatus ?? "";
-        if (ImGui.InputTextMultiline("##status", ref status, 150, new Vector2(w, 60))) draft.CurrentStatus = status;
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        {
+            var status = draft.CurrentStatus ?? "";
+            if (ImGui.InputTextMultiline("##status", ref status, 150, new Vector2(w, 60))) draft.CurrentStatus = status;
+        }
 
         UI.Space();
 
         ImGui.TextColored(Theme.LabelColor, "Player Notes (OOC)");
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        var pnotes = draft.PlayerNotes ?? "";
-        if (ImGui.InputTextMultiline("##ooc", ref pnotes, 250, new Vector2(w, 60))) draft.PlayerNotes = pnotes;
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        {
+            var pnotes = draft.PlayerNotes ?? "";
+            if (ImGui.InputTextMultiline("##ooc", ref pnotes, 250, new Vector2(w, 60))) draft.PlayerNotes = pnotes;
+        }
 
         UI.Space();
     }
@@ -448,22 +452,24 @@ public static class ProfileEditor
             }
             else
             {
-                ImGui.PushFont(UiBuilder.IconFont);
-                var txt = FontAwesomeIcon.Plus.ToIconString();
-                var tsz = ImGui.CalcTextSize(txt);
-                dl.AddText(pos + (new Vector2(boxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim), txt);
-                ImGui.PopFont();
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                {
+                    var txt = FontAwesomeIcon.Plus.ToIconString();
+                    var tsz = ImGui.CalcTextSize(txt);
+                    dl.AddText(pos + (new Vector2(boxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim), txt);
+                }
             }
 
             var overlayPos = new Vector2(max.X - 16, max.Y - 16);
             dl.AddRectFilled(overlayPos, overlayPos + new Vector2(14), Theme.Col(Theme.Primary), 3);
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.SetWindowFontScale(0.6f);
-            var editTxt = FontAwesomeIcon.Pen.ToIconString();
-            var editSz = ImGui.CalcTextSize(editTxt);
-            dl.AddText(overlayPos + (new Vector2(14) - editSz) / 2, 0xFFFFFFFF, editTxt);
-            ImGui.SetWindowFontScale(1f);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                ImGui.SetWindowFontScale(0.6f);
+                var editTxt = FontAwesomeIcon.Pen.ToIconString();
+                var editSz = ImGui.CalcTextSize(editTxt);
+                dl.AddText(overlayPos + (new Vector2(14) - editSz) / 2, 0xFFFFFFFF, editTxt);
+                ImGui.SetWindowFontScale(1f);
+            }
 
             ImGui.SetCursorScreenPos(pos);
             if (ImGui.InvisibleButton($"##glanceedit{i}", new Vector2(boxSize)))
@@ -479,7 +485,7 @@ public static class ProfileEditor
 
                 if (hasData)
                 {
-                    ImGui.BeginTooltip();
+                    using var tip = ImRaii.Tooltip();
                     ImGui.PushTextWrapPos(250);
                     ImGui.TextColored(Theme.GoldColor, glance.Label);
                     if (!string.IsNullOrEmpty(glance.Value))
@@ -488,7 +494,6 @@ public static class ProfileEditor
                         ImGui.TextColored(Theme.ValueColor, glance.Value);
                     }
                     ImGui.PopTextWrapPos();
-                    ImGui.EndTooltip();
                 }
             }
         }
@@ -500,9 +505,9 @@ public static class ProfileEditor
     {
         ImGui.SetNextWindowSize(new Vector2(400, 500), ImGuiCond.Always);
 
-        var isOpen = ImGui.BeginPopup("GlanceEditPopup");
+        using var popup = ImRaii.Popup("GlanceEditPopup");
 
-        if (!isOpen)
+        if (!popup.Success)
         {
             if (_editingGlanceIdx >= 0 && d.Glances != null && _editingGlanceIdx < d.Glances.Count)
             {
@@ -516,7 +521,6 @@ public static class ProfileEditor
 
         if (_editingGlanceIdx < 0 || d.Glances == null || _editingGlanceIdx >= d.Glances.Count)
         {
-            ImGui.EndPopup();
             return;
         }
 
@@ -545,12 +549,13 @@ public static class ProfileEditor
         }
 
         ImGui.SetCursorScreenPos(previewPos + new Vector2(previewSize + UI.Md, 0));
-        ImGui.BeginGroup();
-        ImGui.Text("Title");
-        ImGui.SetNextItemWidth(contentWidth - previewSize - UI.Md - 8);
-        var label = glance.Label ?? "";
-        if (ImGui.InputText("##glancelabel", ref label, 32)) glance.Label = label;
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            ImGui.Text("Title");
+            ImGui.SetNextItemWidth(contentWidth - previewSize - UI.Md - 8);
+            var label = glance.Label ?? "";
+            if (ImGui.InputText("##glancelabel", ref label, 32)) glance.Label = label;
+        }
 
         ImGui.SetCursorScreenPos(previewPos + new Vector2(0, previewSize + UI.Sm));
 
@@ -570,21 +575,20 @@ public static class ProfileEditor
 
         if (glance.IconId > 0 || !string.IsNullOrEmpty(glance.Label))
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.Error with { W = 0.6f });
-            if (ImGui.Button("Clear", new Vector2(80, 26)))
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.6f }))
             {
-                glance.IconId = 0;
-                glance.Label = null;
-                glance.Value = null;
+                if (ImGui.Button("Clear", new Vector2(80, 26)))
+                {
+                    glance.IconId = 0;
+                    glance.Label = null;
+                    glance.Value = null;
+                }
             }
-            ImGui.PopStyleColor();
             ImGui.SameLine();
         }
 
         ImGui.SetCursorPosX(contentWidth - 60 + ImGui.GetStyle().WindowPadding.X);
         if (ImGui.Button("Done", new Vector2(60, 26))) ImGui.CloseCurrentPopup();
-
-        ImGui.EndPopup();
     }
 
     static bool IconExists(uint iconId)
@@ -607,9 +611,12 @@ public static class ProfileEditor
 
     static void DrawIconTabs(GlanceData glance, float iconSize, float contentWidth)
     {
-        if (ImGui.BeginTabBar("IconTabs", ImGuiTabBarFlags.NoTooltip))
+        using var bar = ImRaii.TabBar("IconTabs", ImGuiTabBarFlags.NoTooltip);
+        if (!bar) return;
+
+        using (var t = ImRaii.TabItem(" ★ "))
         {
-            if (ImGui.BeginTabItem(" ★ "))
+            if (t)
             {
                 _currentTab = "Main";
                 _iconRanges.Clear();
@@ -619,11 +626,13 @@ public static class ProfileEditor
                 _iconRanges.Add((66000, 66400));
                 _iconRanges.Add((90000, 100000));
                 DrawIconGrid(glance, iconSize, contentWidth);
-                ImGui.EndTabItem();
                 _tabCache.Remove(_currentTab);
             }
+        }
 
-            if (ImGui.BeginTabItem("Misc"))
+        using (var t = ImRaii.TabItem("Misc"))
+        {
+            if (t)
             {
                 _currentTab = "Misc";
                 _iconRanges.Clear();
@@ -633,11 +642,13 @@ public static class ProfileEditor
                 _iconRanges.Add((63900, 64000));
                 _iconRanges.Add((65000, 65900));
                 DrawIconGrid(glance, iconSize, contentWidth);
-                ImGui.EndTabItem();
                 _tabCache.Remove(_currentTab);
             }
+        }
 
-            if (ImGui.BeginTabItem("Actions"))
+        using (var t = ImRaii.TabItem("Actions"))
+        {
+            if (t)
             {
                 _currentTab = "Actions";
                 _iconRanges.Clear();
@@ -647,10 +658,12 @@ public static class ProfileEditor
                 _iconRanges.Add((19800, 20000));
                 DrawIconGrid(glance, iconSize, contentWidth);
                 _tabCache.Remove(_currentTab);
-                ImGui.EndTabItem();
             }
+        }
 
-            if (ImGui.BeginTabItem("Mounts"))
+        using (var t = ImRaii.TabItem("Mounts"))
+        {
+            if (t)
             {
                 _currentTab = "Mounts";
                 _iconRanges.Clear();
@@ -660,10 +673,12 @@ public static class ProfileEditor
                 _iconRanges.Add((68000, 69000));
                 DrawIconGrid(glance, iconSize, contentWidth);
                 _tabCache.Remove(_currentTab);
-                ImGui.EndTabItem();
             }
+        }
 
-            if (ImGui.BeginTabItem("Items"))
+        using (var t = ImRaii.TabItem("Items"))
+        {
+            if (t)
             {
                 _currentTab = "Items";
                 _iconRanges.Clear();
@@ -672,20 +687,19 @@ public static class ProfileEditor
                 _iconRanges.Add((50000, 54000));
                 DrawIconGrid(glance, iconSize, contentWidth);
                 _tabCache.Remove(_currentTab);
-                ImGui.EndTabItem();
             }
+        }
 
-            if (ImGui.BeginTabItem("Status"))
+        using (var t = ImRaii.TabItem("Status"))
+        {
+            if (t)
             {
                 _currentTab = "Status";
                 _iconRanges.Clear();
                 _iconRanges.Add((210000, 220000));
                 DrawIconGrid(glance, iconSize, contentWidth);
                 _tabCache.Remove(_currentTab);
-                ImGui.EndTabItem();
             }
-
-            ImGui.EndTabBar();
         }
     }
 
@@ -712,7 +726,8 @@ public static class ProfileEditor
         }
 
         var childHeight = 180f;
-        if (ImGui.BeginChild($"{_currentTab}##IconScroll", new Vector2(contentWidth, childHeight), true))
+        using var iconScroll = ImRaii.Child($"{_currentTab}##IconScroll", new Vector2(contentWidth, childHeight), true);
+        if (iconScroll)
         {
             var spacing = ImGui.GetStyle().ItemSpacing.X;
             var columns = Math.Max(1, (int)((contentWidth - 16) / (iconSize + spacing)));
@@ -740,7 +755,6 @@ public static class ProfileEditor
 
             clipper.Destroy();
         }
-        ImGui.EndChild();
     }
 
     static void DrawSingleIcon(uint iconId, GlanceData glance, float size)
@@ -795,23 +809,28 @@ public static class ProfileEditor
             ImGui.SetCursorScreenPos(p + new Vector2(8, 8));
 
             ImGui.SetNextItemWidth(120);
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-            var lbl = a.Label ?? "";
-            if (ImGui.InputText($"##lbl{i}", ref lbl, 50)) a.Label = lbl;
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            {
+                var lbl = a.Label ?? "";
+                if (ImGui.InputText($"##lbl{i}", ref lbl, 50)) a.Label = lbl;
+            }
 
             ImGui.SameLine();
             ImGui.SetNextItemWidth(w - 200);
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-            var inp = a.Input ?? "";
-            if (ImGui.InputText($"##inp{i}", ref inp, 100)) a.Input = inp;
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            {
+                var inp = a.Input ?? "";
+                if (ImGui.InputText($"##inp{i}", ref inp, 100)) a.Input = inp;
+            }
 
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.Error with { W = 0.3f });
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Error);
-            if (ImGui.Button($"X##{i}", new Vector2(24, 24))) { edit.RemoveAbout(i); ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 64)); continue; }
-            ImGui.PopStyleColor(2);
+            bool removed = false;
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                .Push(ImGuiCol.Text, Theme.Error))
+            {
+                if (ImGui.Button($"X##{i}", new Vector2(24, 24))) { edit.RemoveAbout(i); removed = true; }
+            }
+            if (removed) { ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 64)); continue; }
 
             ImGui.EndGroup();
             ImGui.SetCursorScreenPos(p + new Vector2(0, 64));
@@ -820,10 +839,11 @@ public static class ProfileEditor
         UI.Space();
         if (draft.About.Count < 20)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Success);
-            if (ImGui.Button("+ Add Field", new Vector2(100, 26))) edit.AddAbout();
-            ImGui.PopStyleColor(2);
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                .Push(ImGuiCol.Text, Theme.Success))
+            {
+                if (ImGui.Button("+ Add Field", new Vector2(100, 26))) edit.AddAbout();
+            }
         }
     }
 
@@ -852,24 +872,29 @@ public static class ProfileEditor
             ImGui.TextColored(Theme.LabelColorDim, "Title");
             ImGui.SameLine();
             ImGui.SetNextItemWidth(w - 100);
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-            var title = h.Title ?? "";
-            if (ImGui.InputText($"##htitle{i}", ref title, 50)) h.Title = title;
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            {
+                var title = h.Title ?? "";
+                if (ImGui.InputText($"##htitle{i}", ref title, 50)) h.Title = title;
+            }
 
             ImGui.SameLine();
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.Error with { W = 0.3f });
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Error);
-            if (ImGui.Button($"X##h{i}", new Vector2(24, 24))) { edit.RemoveHook(i); ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 108)); continue; }
-            ImGui.PopStyleColor(2);
+            bool hremoved = false;
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                .Push(ImGuiCol.Text, Theme.Error))
+            {
+                if (ImGui.Button($"X##h{i}", new Vector2(24, 24))) { edit.RemoveHook(i); hremoved = true; }
+            }
+            if (hremoved) { ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 108)); continue; }
 
             ImGui.SetCursorScreenPos(p + new Vector2(12, 36));
             ImGui.TextColored(Theme.LabelColorDim, "Description");
             ImGui.SetCursorScreenPos(p + new Vector2(12, 52));
-            ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg);
-            var desc = h.Description ?? "";
-            if (ImGui.InputTextMultiline($"##hdesc{i}", ref desc, 300, new Vector2(w - 24, 40))) h.Description = desc;
-            ImGui.PopStyleColor();
+            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+            {
+                var desc = h.Description ?? "";
+                if (ImGui.InputTextMultiline($"##hdesc{i}", ref desc, 300, new Vector2(w - 24, 40))) h.Description = desc;
+            }
 
             ImGui.EndGroup();
             ImGui.SetCursorScreenPos(p + new Vector2(0, 108));
@@ -878,10 +903,11 @@ public static class ProfileEditor
         UI.Space();
         if (draft.Hooks.Count < 10)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.Success);
-            if (ImGui.Button("+ Add Hook", new Vector2(100, 26))) edit.AddHook();
-            ImGui.PopStyleColor(2);
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                .Push(ImGuiCol.Text, Theme.Success))
+            {
+                if (ImGui.Button("+ Add Hook", new Vector2(100, 26))) edit.AddHook();
+            }
         }
     }
 
@@ -889,9 +915,10 @@ public static class ProfileEditor
     {
         ImGui.TextColored(Theme.LabelColor, label);
         ImGui.SetNextItemWidth(w);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f });
-        var v = getter(obj) ?? "";
-        if (ImGui.InputText($"##{label}", ref v, (int)max)) setter(obj, v);
-        ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        {
+            var v = getter(obj) ?? "";
+            if (ImGui.InputText($"##{label}", ref v, (int)max)) setter(obj, v);
+        }
     }
 }

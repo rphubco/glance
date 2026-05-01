@@ -5,7 +5,9 @@ using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
 using Glance.Models;
+using Dalamud.Interface.Utility.Raii;
 using Glance.UI.Tabs;
+using System;
 using System.Numerics;
 
 public sealed class ProfileViewWindow : Window
@@ -34,16 +36,16 @@ public sealed class ProfileViewWindow : Window
             ProfileTab.Show(name, world, profile.Data, profile.Id.ToString());
     }
 
-    public override void PreDraw() => Theme.PushStyle();
-    public override void PostDraw() => Theme.PopStyle();
+    IDisposable? _themeScope;
+    public override void PreDraw() => _themeScope = Theme.PushStyle();
+    public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
 
     public override void Draw()
     {
         Theme.DrawFrame();
         if (!_init) { _init = true; _alpha = 0f; }
         _alpha = UI.Animate("profile_fade", 1f, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, _alpha);
-        ProfileTab.Draw();
-        ImGui.PopStyleVar();
+        using (ImRaii.PushStyle(ImGuiStyleVar.Alpha, _alpha))
+            ProfileTab.Draw();
     }
 }

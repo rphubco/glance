@@ -3,6 +3,7 @@ namespace Glance.UI.Windows;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
@@ -83,20 +84,22 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
     public void SetTab(int tab) { _tab = tab; _charSub = 0; }
 
+    IDisposable? _themeScope;
+
     public override void PreDraw()
     {
-        Theme.PushStyle();
+        _themeScope = Theme.PushStyle();
         ImGui.SetNextWindowSize(new Vector2(700, 520), ImGuiCond.FirstUseEver);
     }
 
-    public override void PostDraw() => Theme.PopStyle();
+    public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
 
     public override void Draw()
     {
         Theme.DrawFrame(Theme.CornerAccentSizeLarge);
         if (!_init) { _init = true; _alpha = 0f; }
         _alpha = UI.Animate("main_fade", 1f, 4f);
-        ImGui.PushStyleVar(ImGuiStyleVar.Alpha, _alpha);
+        using var alpha = ImRaii.PushStyle(ImGuiStyleVar.Alpha, _alpha);
 
         if (Globals.Auth.IsValidating) DrawValidating();
         else if (!Globals.Auth.IsAuthenticated)
@@ -107,17 +110,16 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
                 DrawLogin();
         }
         else DrawLayout();
-
-        ImGui.PopStyleVar();
     }
 
     void DrawTargetOnly()
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg);
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.ButtonHovered);
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("< Back to Login", new Vector2(120, 24))) { _charSub = 0; Sound.PlayCancel(); }
-        ImGui.PopStyleColor(3);
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg))
+        using (ImRaii.PushColor(ImGuiCol.ButtonHovered, Theme.ButtonHovered))
+        using (ImRaii.PushColor(ImGuiCol.Text, Theme.LabelColor))
+        {
+            if (ImGui.Button("< Back to Login", new Vector2(120, 24))) { _charSub = 0; Sound.PlayCancel(); }
+        }
 
         UI.Space(4);
         UI.Divider();
@@ -146,17 +148,20 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
     void DrawLayout()
     {
-        if (ImGui.BeginChild("Sidebar", new Vector2(180, -1), true))
+        using (var sidebar = ImRaii.Child("Sidebar", new Vector2(180, -1), true))
         {
-            Header();
-            UI.Space(8); UI.Divider(); UI.Space(8);
-            Tabs();
-            var y = ImGui.GetContentRegionAvail().Y;
-            if (y > 90) { ImGui.SetCursorPosY(ImGui.GetCursorPosY() + y - 27f); Logout(); }
+            if (sidebar)
+            {
+                Header();
+                UI.Space(8); UI.Divider(); UI.Space(8);
+                Tabs();
+                var y = ImGui.GetContentRegionAvail().Y;
+                if (y > 90) { ImGui.SetCursorPosY(ImGui.GetCursorPosY() + y - 27f); Logout(); }
+            }
         }
-        ImGui.EndChild();
         ImGui.SameLine();
-        if (ImGui.BeginChild("Content", new Vector2(-1, -1), true))
+        using var content = ImRaii.Child("Content", new Vector2(-1, -1), true);
+        if (content)
         {
             if (Globals.Objects.LocalPlayer == null)
             {
@@ -190,7 +195,6 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
                 }
             }
         }
-        ImGui.EndChild();
     }
 
     void DrawLoginRequiredPrompt()
@@ -198,9 +202,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var avail = ImGui.GetContentRegionAvail();
         ImGui.SetCursorPosY(avail.Y * 0.3f);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        CenteredText(FontAwesomeIcon.SignOutAlt.ToIconString(), Theme.TextMuted);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            CenteredText(FontAwesomeIcon.SignOutAlt.ToIconString(), Theme.TextMuted);
 
         UI.Space(10);
         ImGui.SetWindowFontScale(1.2f);
@@ -219,9 +222,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
         ImGui.SetCursorPosY(avail.Y * 0.25f);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        CenteredText(FontAwesomeIcon.Link.ToIconString(), Theme.GoldColor);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            CenteredText(FontAwesomeIcon.Link.ToIconString(), Theme.GoldColor);
 
         UI.Space(10);
         ImGui.SetWindowFontScale(1.2f);
@@ -280,16 +282,17 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         catch { }
 
         ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, startY));
-        ImGui.BeginGroup();
-        ImGui.SetWindowFontScale(1.1f);
-        using (Globals.Fonts.Header.Push())
+        using (ImRaii.Group())
         {
-            ImGui.TextColored(Theme.Primary, "Glance beta");
+            ImGui.SetWindowFontScale(1.1f);
+            using (Globals.Fonts.Header.Push())
+            {
+                ImGui.TextColored(Theme.Primary, "Glance beta");
+            }
+            ImGui.SetWindowFontScale(Theme.SmallFont);
+            ImGui.TextColored(Theme.TextMuted, "by RPHub.co");
+            ImGui.SetWindowFontScale(1f);
         }
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        ImGui.TextColored(Theme.TextMuted, "by RPHub.co");
-        ImGui.SetWindowFontScale(1f);
-        ImGui.EndGroup();
         ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 30));
     }
 
@@ -315,7 +318,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             if (target is Dalamud.Game.ClientState.Objects.SubKinds.IPlayerCharacter pc)
             {
                 gameTargetName = pc.Name.TextValue;
-                gameTargetWorld = pc.HomeWorld.Value.Name.ExtractText();
+                gameTargetWorld = pc.HomeWorld.Value.Name.ToString();
             }
 
             var displayName = _charSub == 2 && _viewedTargetName != null
@@ -371,9 +374,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
         ImGui.SetCursorScreenPos(p + new Vector2(8, (h - ImGui.GetTextLineHeight()) / 2));
         ImGui.SetWindowFontScale(Theme.SmallFont);
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored((sel ? Theme.GoldColor : Theme.LabelColor) with { W = 0.7f }, icon.ToIconString());
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            ImGui.TextColored((sel ? Theme.GoldColor : Theme.LabelColor) with { W = 0.7f }, icon.ToIconString());
         ImGui.SameLine();
         ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, name);
         ImGui.SetWindowFontScale(1f);
@@ -408,9 +410,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         }
 
         ImGui.SetCursorScreenPos(p + new Vector2(12, (h - ImGui.GetTextLineHeight()) / 2));
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, icon.ToIconString());
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, icon.ToIconString());
         ImGui.SameLine();
         ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 6);
         ImGui.TextColored(sel ? Theme.GoldColor : Theme.ValueColor, name);
@@ -421,12 +422,13 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
     void Logout()
     {
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.4f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.3f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f });
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Log Out", new Vector2(ImGui.GetContentRegionAvail().X, 24))) Globals.Auth.Logout();
-        ImGui.PopStyleColor(4);
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.4f })
+            .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.3f })
+            .Push(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f })
+            .Push(ImGuiCol.Text, Theme.LabelColor))
+        {
+            if (ImGui.Button("Log Out", new Vector2(ImGui.GetContentRegionAvail().X, 24))) Globals.Auth.Logout();
+        }
     }
 
     void DrawLogin()
@@ -499,12 +501,13 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         UI.Space(16);
 
         ImGui.SetCursorPosX(centerX - 70);
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.3f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.35f });
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f });
-        ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextMuted);
-        if (ImGui.Button("Cancel", new Vector2(140, 30))) Globals.Auth.CancelAuth();
-        ImGui.PopStyleColor(4);
+        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.3f })
+            .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.35f })
+            .Push(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f })
+            .Push(ImGuiCol.Text, Theme.TextMuted))
+        {
+            if (ImGui.Button("Cancel", new Vector2(140, 30))) Globals.Auth.CancelAuth();
+        }
     }
 
     int _authStep;
@@ -529,30 +532,17 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         UI.Space(8);
         ImGui.SetCursorPosX(centerX - 100);
 
-        if (isLoggedIn)
+        using (ImRaii.PushColor(ImGuiCol.Button, isLoggedIn ? Theme.PrimaryButtonBg : Theme.ButtonBg with { W = 0.2f })
+            .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover, isLoggedIn)
+            .Push(ImGuiCol.ButtonActive, Theme.PrimaryButtonBg with { W = 0.9f }, isLoggedIn)
+            .Push(ImGuiCol.Text, isLoggedIn ? Theme.PrimaryButtonText : Theme.TextMuted with { W = 0.5f }))
+        using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4f))
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover);
-            ImGui.PushStyleColor(ImGuiCol.ButtonActive, Theme.PrimaryButtonBg with { W = 0.9f });
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4f);
-
-            if (ImGui.Button("Connect RPHub Account", new Vector2(200, 36))) { Globals.Auth.StartAuthProcess(); Sound.PlayConfirm(); }
-
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor(4);
+            if (ImGui.Button("Connect RPHub Account", new Vector2(200, 36)) && isLoggedIn) { Globals.Auth.StartAuthProcess(); Sound.PlayConfirm(); }
         }
-        else
+
+        if (!isLoggedIn)
         {
-            ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.2f });
-            ImGui.PushStyleColor(ImGuiCol.Text, Theme.TextMuted with { W = 0.5f });
-            ImGui.PushStyleVar(ImGuiStyleVar.FrameRounding, 4f);
-
-            ImGui.Button("Connect RPHub Account", new Vector2(200, 36));
-
-            ImGui.PopStyleVar();
-            ImGui.PopStyleColor(2);
-
             UI.Space(4);
             CenteredText("Please login on a character to sign in", Theme.Error with { W = 0.8f });
         }
@@ -573,13 +563,14 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var iconsX = centerX - iconsW / 2;
 
         ImGui.SetCursorPosX(iconsX);
-        ImGui.BeginGroup();
-        SocialIcon(FontAwesomeIcon.Heart, "https://discord.gg/rbSWGK9gvT", "Discord");
-        ImGui.SameLine(0, iconGap);
-        SocialIcon(FontAwesomeIcon.Globe, "https://rphub.co", "Website");
-        ImGui.SameLine(0, iconGap);
-        SocialIcon(FontAwesomeIcon.QuestionCircle, "https://rphub.co/plugin", "Help");
-        ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            SocialIcon(FontAwesomeIcon.Heart, "https://discord.gg/rbSWGK9gvT", "Discord");
+            ImGui.SameLine(0, iconGap);
+            SocialIcon(FontAwesomeIcon.Globe, "https://rphub.co", "Website");
+            ImGui.SameLine(0, iconGap);
+            SocialIcon(FontAwesomeIcon.QuestionCircle, "https://rphub.co/plugin", "Help");
+        }
     }
 
     void DrawSpinner(ImDrawListPtr dl, Vector2 pos, float innerRadius, float outerRadius, float thickness)
@@ -602,10 +593,11 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var active = current == step;
         var col = done ? Theme.Success : (active ? Theme.GoldColor : Theme.TextMuted with { W = 0.4f });
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        var iconStr = done ? FontAwesomeIcon.Check.ToIconString() : FontAwesomeIcon.Circle.ToIconString();
-        ImGui.TextColored(col, iconStr);
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var iconStr = done ? FontAwesomeIcon.Check.ToIconString() : FontAwesomeIcon.Circle.ToIconString();
+            ImGui.TextColored(col, iconStr);
+        }
 
         ImGui.SameLine();
         ImGui.SetWindowFontScale(0.9f);
@@ -621,9 +613,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var size = new Vector2(24, 24);
         var hov = ImGui.IsMouseHoveringRect(p, p + size);
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(hov ? Theme.GoldColor : Theme.TextMuted, icon.ToIconString());
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            ImGui.TextColored(hov ? Theme.GoldColor : Theme.TextMuted, icon.ToIconString());
 
         if (hov)
         {

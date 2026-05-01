@@ -2,6 +2,7 @@ namespace Glance.UI.Tabs;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
 using Glance.UI;
@@ -19,7 +20,7 @@ public static class CharacterTab
             if (Globals.Objects.LocalPlayer is { } lp)
             {
                 name = lp.Name.TextValue;
-                world = lp.HomeWorld.Value.Name.ExtractText();
+                world = lp.HomeWorld.Value.Name.ToString();
             }
             ProfileEditor.Draw(name, world, onSaved: () => _ = Globals.Profiles.FetchProfilesAsync());
             return;
@@ -35,7 +36,7 @@ public static class CharacterTab
         {
             var isVerified = Globals.Profiles.Data?.CurrentVerified == true;
             var playerName = lp2.Name.TextValue;
-            var playerWorld = lp2.HomeWorld.Value.Name.ExtractText();
+            var playerWorld = lp2.HomeWorld.Value.Name.ToString();
 
             if (!isVerified)
             {
@@ -57,21 +58,21 @@ public static class CharacterTab
             ImGui.TextColored(Theme.GoldColor, "Your Profiles");
 
             ImGui.SameLine(0, 5f);
-            ImGui.PushFont(UiBuilder.IconFont);
-            ImGui.SetWindowFontScale(0.9f); 
-            ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.QuestionCircle.ToIconString());
-            ImGui.SetWindowFontScale(1f);
-            ImGui.PopFont();
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                ImGui.SetWindowFontScale(0.9f);
+                ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.QuestionCircle.ToIconString());
+                ImGui.SetWindowFontScale(1f);
+            }
 
             if (ImGui.IsItemHovered())
             {
-                ImGui.BeginTooltip();
+                using var tip = ImRaii.Tooltip();
                 ImGui.TextColored(Theme.GoldColor, "Privacy & Profiles");
                 ImGui.Separator();
                 ImGui.BulletText("To hide your profile from others: Check 'Hide Profile' in Settings.");
                 ImGui.BulletText("To unlink completely: Use the interface on the RPHub website.");
                 ImGui.BulletText("Changes may take a few moments to sync across all users.");
-                ImGui.EndTooltip();
             }
 
             ImGui.Separator();
@@ -105,11 +106,10 @@ public static class CharacterTab
         dl.AddRect(pos, max, Theme.Col(new Vector4(1f, 0.7f, 0.2f, 0.6f)), 6f, ImDrawFlags.None, 2f);
 
         ImGui.SetCursorScreenPos(pos + new Vector2(padding, padding));
-        ImGui.BeginGroup();
+        using var group = ImRaii.Group();
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        ImGui.TextColored(new Vector4(1f, 0.7f, 0.2f, 1f), FontAwesomeIcon.ExclamationTriangle.ToIconString());
-        ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+            ImGui.TextColored(new Vector4(1f, 0.7f, 0.2f, 1f), FontAwesomeIcon.ExclamationTriangle.ToIconString());
         ImGui.SameLine();
         ImGui.TextColored(new Vector4(1f, 0.85f, 0.4f, 1f), "Character Not Verified");
 
@@ -126,40 +126,39 @@ public static class CharacterTab
 
         UI.Space(8);
 
-        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.8f, 0.5f, 0.1f, 0.8f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.6f, 0.2f, 0.9f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.7f, 0.4f, 0.1f, 1f));
-        ImGui.PushStyleColor(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f));
-
-        if (ImGui.Button("Verify on RPHub.co", new Vector2(160, 28)))
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.8f, 0.5f, 0.1f, 0.8f))
+            .Push(ImGuiCol.ButtonHovered, new Vector4(0.9f, 0.6f, 0.2f, 0.9f))
+            .Push(ImGuiCol.ButtonActive, new Vector4(0.7f, 0.4f, 0.1f, 1f))
+            .Push(ImGuiCol.Text, new Vector4(1f, 1f, 1f, 1f)))
         {
-            var url = $"https://rphub.co/verify?name={Uri.EscapeDataString(name)}&world={Uri.EscapeDataString(world)}";
-            Dalamud.Utility.Util.OpenLink(url);
+            if (ImGui.Button("Verify on RPHub.co", new Vector2(160, 28)))
+            {
+                var url = $"https://rphub.co/verify?name={Uri.EscapeDataString(name)}&world={Uri.EscapeDataString(world)}";
+                Dalamud.Utility.Util.OpenLink(url);
+            }
         }
-
-        ImGui.PopStyleColor(4);
 
         ImGui.SameLine();
 
-        ImGui.PushStyleColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 0.3f, 0.8f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.4f, 0.9f));
-        ImGui.PushStyleColor(ImGuiCol.ButtonActive, new Vector4(0.25f, 0.25f, 0.25f, 1f));
+        using (ImRaii.PushColor(ImGuiCol.Button, new Vector4(0.3f, 0.3f, 0.3f, 0.8f))
+            .Push(ImGuiCol.ButtonHovered, new Vector4(0.4f, 0.4f, 0.4f, 0.9f))
+            .Push(ImGuiCol.ButtonActive, new Vector4(0.25f, 0.25f, 0.25f, 1f)))
+        {
+            using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                if (ImGui.Button(FontAwesomeIcon.Sync.ToIconString(), new Vector2(28, 28)))
+                    _ = Globals.Profiles.FetchProfilesAsync();
+            }
 
-        ImGui.PushFont(UiBuilder.IconFont);
-        if (ImGui.Button(FontAwesomeIcon.Sync.ToIconString(), new Vector2(28, 28)))
-            _ = Globals.Profiles.FetchProfilesAsync();
-        ImGui.PopFont();
-
-        if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Refresh verification status");
-
-        ImGui.PopStyleColor(3);
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Refresh verification status");
+        }
 
         ImGui.SameLine();
         ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 6);
         ImGui.TextColored(Theme.TextMuted, "Takes ~1 minute");
 
-        ImGui.EndGroup();
+        group.Dispose();
 
         ImGui.SetCursorScreenPos(new Vector2(pos.X, max.Y + 4));
     }

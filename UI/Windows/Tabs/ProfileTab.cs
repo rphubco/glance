@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility.Raii;
 using Glance.Core;
 using Glance.Models;
 using Glance.UI.Windows;
@@ -160,7 +161,7 @@ public static class ProfileTab
                 }
 
                 var charName = lp.Name.TextValue;
-                var charWorld = lp.HomeWorld.Value.Name.ExtractText();
+                var charWorld = lp.HomeWorld.Value.Name.ToString();
 
                 var cached = Globals.Cache.GetProfile(charName, charWorld);
                 if (cached?.Data != null)
@@ -226,7 +227,7 @@ public static class ProfileTab
         dl.AddRect(ip, ie, Theme.Col(Theme.FrameBorderInner with { W = 0.6f }), 6);
         DrawGlances(dl, p.X + pad, p.Y + pad + imgH - (glanceBoxSize / 2), imgW, glanceBoxSize, glanceSpacing, data);
         ImGui.SetCursorScreenPos(p + new Vector2(pad + imgW + UI.Lg, pad));
-        ImGui.BeginGroup();
+        var headerGroup = ImRaii.Group();
         using (Globals.Fonts.Title.Push()) ImGui.TextColored(Theme.NameColor, data?.Name ?? name ?? "Unknown");
         if (!string.IsNullOrEmpty(data?.Description))
         {
@@ -241,7 +242,7 @@ public static class ProfileTab
         if (meta.Length > 0) { IconText(FontAwesomeIcon.Dna, Theme.LabelColorDim, meta); UI.Space(UI.Xs); }
         IconText(FontAwesomeIcon.Globe, Theme.WorldColor, $"{name} @ {world}");
         if (!string.IsNullOrEmpty(data?.FreeCompany)) { UI.Space(UI.Xs); IconText(FontAwesomeIcon.Shield, Theme.LabelColor, data.FreeCompany); }
-        ImGui.EndGroup();
+        headerGroup.Dispose();
         var bx = p.X + w - pad - 24;
         if (profileId != null && IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.ExternalLinkAlt, "View on RPHub"))
             Dalamud.Utility.Util.OpenLink($"https://rphub.co/ch/{profileId}");
@@ -313,7 +314,7 @@ public static class ProfileTab
                     ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
                     dl.AddRect(pos, max, Theme.Col(Theme.GoldColor), 4, ImDrawFlags.None, 2);
 
-                    ImGui.BeginTooltip();
+                    using var tip = ImRaii.Tooltip();
                     ImGui.TextColored(Theme.GoldColor, g.Label ?? "");
                     if (!string.IsNullOrEmpty(g.Value))
                     {
@@ -322,16 +323,16 @@ public static class ProfileTab
                         ImGui.TextColored(Theme.ValueColor, g.Value);
                         ImGui.PopTextWrapPos();
                     }
-                    ImGui.EndTooltip();
                 }
             }
             else
             {
-                ImGui.PushFont(UiBuilder.IconFont);
-                var txt = FontAwesomeIcon.Question.ToIconString();
-                var tsz = ImGui.CalcTextSize(txt);
-                dl.AddText(pos + (new Vector2(boxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.3f }), txt);
-                ImGui.PopFont();
+                using (ImRaii.PushFont(UiBuilder.IconFont))
+                {
+                    var txt = FontAwesomeIcon.Question.ToIconString();
+                    var tsz = ImGui.CalcTextSize(txt);
+                    dl.AddText(pos + (new Vector2(boxSize) - tsz) / 2, Theme.Col(Theme.LabelColorDim with { W = 0.3f }), txt);
+                }
                 ImGui.SetCursorScreenPos(pos);
                 ImGui.InvisibleButton($"##glance{i}", new Vector2(boxSize));
             }
@@ -344,17 +345,18 @@ public static class ProfileTab
         for (var i = 0; i < tabs.Length; i++)
         {
             if (i > 0) ImGui.SameLine(0, UI.Xs); var sel = _tab == i;
-            ImGui.PushStyleColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg);
-            ImGui.PushStyleColor(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor);
-            if (ImGui.Button(tabs[i], new Vector2(tw, 30)))
+            using (ImRaii.PushColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg)
+                .Push(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor))
             {
-                if (_tab != i)
+                if (ImGui.Button(tabs[i], new Vector2(tw, 30)))
                 {
-                    _tab = i;
-                    Sound.PlayClick();
+                    if (_tab != i)
+                    {
+                        _tab = i;
+                        Sound.PlayClick();
+                    }
                 }
             }
-            ImGui.PopStyleColor(2);
         }
     }
 
@@ -364,8 +366,11 @@ public static class ProfileTab
         var text = content.Replace("\\n", "\n").Replace("/n", "\n"); const float pad = 8f;
         var textSize = ImGui.CalcTextSize(text, false, w - pad * 2); var boxHeight = ImGui.GetTextLineHeight() + textSize.Y + 16f; var max = start + new Vector2(w, boxHeight);
         dl.AddRectFilled(start, max, Theme.Col(bgColor), 4f); dl.AddRect(start, max, Theme.Col(labelColor with { W = 0.4f }), 4f);
-        ImGui.BeginGroup(); ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4); ImGui.TextColored(labelColor, label);
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2); ImGui.TextColored(Theme.ValueColor, text); ImGui.PopTextWrapPos(); ImGui.EndGroup();
+        using (ImRaii.Group())
+        {
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4); ImGui.TextColored(labelColor, label);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2); ImGui.TextColored(Theme.ValueColor, text); ImGui.PopTextWrapPos();
+        }
         ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4));
     }
 
@@ -379,7 +384,8 @@ public static class ProfileTab
         if (data.About is { Count: > 0 })
         {
             Section("About");
-            if (ImGui.BeginTable("##about", 2, ImGuiTableFlags.SizingStretchSame))
+            using var table = ImRaii.Table("##about", 2, ImGuiTableFlags.SizingStretchSame);
+            if (table)
             {
                 foreach (var f in data.About.Where(f => !string.IsNullOrEmpty(f.Input)))
                 {
@@ -390,7 +396,6 @@ public static class ProfileTab
                     ImGui.PopTextWrapPos();
                     UI.Space(UI.Xs);
                 }
-                ImGui.EndTable();
             }
         }
     }
@@ -401,10 +406,10 @@ public static class ProfileTab
         foreach (var h in data.Hooks)
         {
             var dl = ImGui.GetWindowDrawList(); var p = ImGui.GetCursorScreenPos(); var w = ImGui.GetContentRegionAvail().X;
-            ImGui.BeginGroup(); ImGui.Dummy(new Vector2(w, UI.Sm)); ImGui.Indent(UI.Md);
+            var grp = ImRaii.Group(); ImGui.Dummy(new Vector2(w, UI.Sm)); ImGui.Indent(UI.Md);
             using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.GoldColor, h.Title ?? "Hook");
             if (!string.IsNullOrEmpty(h.Description)) { UI.Space(UI.Xs); ImGui.SetWindowFontScale(Theme.MediumFont); Wrapped(h.Description, Theme.TextMuted); ImGui.SetWindowFontScale(1f); }
-            ImGui.Unindent(UI.Md); ImGui.Dummy(new Vector2(0, UI.Sm)); ImGui.EndGroup();
+            ImGui.Unindent(UI.Md); ImGui.Dummy(new Vector2(0, UI.Sm)); grp.Dispose();
             var e = ImGui.GetItemRectMax(); var hov = ImGui.IsItemHovered(); if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
             dl.AddRectFilled(p, new Vector2(p.X + w, e.Y), Theme.Col(Theme.ButtonBg with { W = hov ? 0.35f : 0.25f }), 4);
             dl.AddRectFilled(p, new Vector2(p.X + 3, e.Y), Theme.Col(Theme.GoldColor with { W = hov ? 0.9f : 0.6f }), 4, ImDrawFlags.RoundCornersLeft);
@@ -421,31 +426,41 @@ public static class ProfileTab
         DrawNoteField("Character Notes", "Tied to character name & world", $"{name}@{world}", ref _charNote, ref _charNoteDirty, w, halfH);
         UI.Space(UI.Sm);
         var canSave = _profileNoteDirty || _charNoteDirty;
-        if (!canSave) ImGui.BeginDisabled();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.PrimaryButtonBg); ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover); ImGui.PushStyleColor(ImGuiCol.Text, Theme.PrimaryButtonText);
-        if (ImGui.Button("Save All", new Vector2(90, 26))) { if (_profileNoteDirty) { Globals.Notes.Set(profileId ?? $"{name}@{world}", _profileNote); _profileNoteDirty = false; } if (_charNoteDirty) { Globals.Notes.Set($"{name}@{world}", _charNote); _charNoteDirty = false; } Sound.PlaySuccess(); }
-        ImGui.PopStyleColor(3); if (!canSave) ImGui.EndDisabled();
-        ImGui.SameLine(); if (!canSave) ImGui.BeginDisabled();
-        ImGui.PushStyleColor(ImGuiCol.Button, Theme.ButtonBg); ImGui.PushStyleColor(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f }); ImGui.PushStyleColor(ImGuiCol.Text, Theme.LabelColor);
-        if (ImGui.Button("Discard", new Vector2(80, 26))) { _profileNote = Globals.Notes.Get(profileId ?? $"{name}@{world}"); _charNote = Globals.Notes.Get($"{name}@{world}"); _profileNoteDirty = _charNoteDirty = false;  Sound.PlayCancel();}
-        ImGui.PopStyleColor(3); if (!canSave) ImGui.EndDisabled();
+        using (ImRaii.Disabled(!canSave))
+        {
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
+                .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
+                .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
+            {
+                if (ImGui.Button("Save All", new Vector2(90, 26))) { if (_profileNoteDirty) { Globals.Notes.Set(profileId ?? $"{name}@{world}", _profileNote); _profileNoteDirty = false; } if (_charNoteDirty) { Globals.Notes.Set($"{name}@{world}", _charNote); _charNoteDirty = false; } Sound.PlaySuccess(); }
+            }
+            ImGui.SameLine();
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f })
+                .Push(ImGuiCol.Text, Theme.LabelColor))
+            {
+                if (ImGui.Button("Discard", new Vector2(80, 26))) { _profileNote = Globals.Notes.Get(profileId ?? $"{name}@{world}"); _charNote = Globals.Notes.Get($"{name}@{world}"); _profileNoteDirty = _charNoteDirty = false; Sound.PlayCancel(); }
+            }
+        }
     }
 
     static void DrawNoteField(string label, string hint, string key, ref string note, ref bool dirty, float w, float h)
     {
         var startY = ImGui.GetCursorPosY();
-        ImGui.PushFont(UiBuilder.IconFont); ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.StickyNote.ToIconString()); ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont)) ImGui.TextColored(Theme.LabelColorDim, FontAwesomeIcon.StickyNote.ToIconString());
         ImGui.SameLine(0, UI.Sm); ImGui.TextColored(Theme.LabelColor, label); ImGui.SameLine(); ImGui.TextColored(Theme.TextMuted, $"- {hint}");
         if (dirty) { var statusText = "(unsaved)"; ImGui.SameLine(w - ImGui.CalcTextSize(statusText).X); ImGui.TextColored(Theme.Warning, statusText); }
         ImGui.SetCursorPosY(startY + ImGui.GetTextLineHeightWithSpacing() + UI.Xs);
-        ImGui.PushStyleColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }); ImGui.PushStyleVar(ImGuiStyleVar.FramePadding, new Vector2(UI.Sm));
-        if (ImGui.InputTextMultiline($"##{key}", ref note, 4096, new Vector2(w, h), ImGuiInputTextFlags.AllowTabInput)) dirty = true;
-        ImGui.PopStyleVar(); ImGui.PopStyleColor();
+        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+        using (ImRaii.PushStyle(ImGuiStyleVar.FramePadding, new Vector2(UI.Sm)))
+        {
+            if (ImGui.InputTextMultiline($"##{key}", ref note, 4096, new Vector2(w, h), ImGuiInputTextFlags.AllowTabInput)) dirty = true;
+        }
     }
 
     static void Section(string t) { ImGui.TextColored(Theme.Primary, t.ToUpperInvariant()); ImGui.Separator(); UI.Space(UI.Xs); }
     static void Wrapped(string t, Vector4? col = null) { ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X); ImGui.TextColored(col ?? Theme.ValueColor, t); ImGui.PopTextWrapPos(); }
-    static void IconText(FontAwesomeIcon i, Vector4 col, string t) { ImGui.PushFont(UiBuilder.IconFont); ImGui.TextColored(Theme.LabelColorDim, i.ToIconString()); ImGui.PopFont(); ImGui.SameLine(0, UI.Sm); ImGui.TextColored(col, t); }
+    static void IconText(FontAwesomeIcon i, Vector4 col, string t) { using (ImRaii.PushFont(UiBuilder.IconFont)) ImGui.TextColored(Theme.LabelColorDim, i.ToIconString()); ImGui.SameLine(0, UI.Sm); ImGui.TextColored(col, t); }
 
     static void Empty(string t, string s)
     {
@@ -456,9 +471,12 @@ public static class ProfileTab
 
     static void Icon(ImDrawListPtr dl, Vector2 c, FontAwesomeIcon i, Vector4 col, float scale = 1f)
     {
-        ImGui.PushFont(UiBuilder.IconFont); var sz = ImGui.GetFontSize() * scale; var txt = i.ToIconString();
-        ImGui.SetWindowFontScale(scale); var s = ImGui.CalcTextSize(txt); ImGui.SetWindowFontScale(1);
-        dl.AddText(ImGui.GetFont(), sz, c - s / 2, Theme.Col(col), txt); ImGui.PopFont();
+        using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            var sz = ImGui.GetFontSize() * scale; var txt = i.ToIconString();
+            ImGui.SetWindowFontScale(scale); var s = ImGui.CalcTextSize(txt); ImGui.SetWindowFontScale(1);
+            dl.AddText(ImGui.GetFont(), sz, c - s / 2, Theme.Col(col), txt);
+        }
     }
 
     static bool IconBtn(ImDrawListPtr dl, Vector2 p, FontAwesomeIcon i, string tip)

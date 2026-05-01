@@ -108,7 +108,7 @@ public sealed class AuthService : IDisposable
         {
             var (name, world) = await Globals.Framework.RunOnFrameworkThread(() =>
                 (Globals.Objects.LocalPlayer?.Name.TextValue,
-                 Globals.Objects.LocalPlayer?.HomeWorld.Value.Name.ExtractText()));
+                 Globals.Objects.LocalPlayer?.HomeWorld.Value.Name.ToString()));
 
             if (name == null || world == null) return false;
 
@@ -177,10 +177,10 @@ public sealed class AuthService : IDisposable
         if (Globals.Objects.LocalPlayer is { } p)
         {
             q["name"] = p.Name.TextValue;
-            q["world"] = p.HomeWorld.Value.Name.ExtractText();
+            q["world"] = p.HomeWorld.Value.Name.ToString();
             q["cid"] = IdentityHash.Hash(Globals.PlayerState.ContentId);
-            q["race"] = Globals.PlayerState.Race.Value.Masculine.ExtractText();
-            q["clan"] = Globals.PlayerState.Tribe.Value.Masculine.ExtractText();
+            q["race"] = Globals.PlayerState.Race.Value.Masculine.ToString();
+            q["clan"] = Globals.PlayerState.Tribe.Value.Masculine.ToString();
         }
 
         Util.OpenLink($"https://rphub.co/activate?{q}");

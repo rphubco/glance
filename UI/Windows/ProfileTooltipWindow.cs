@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Core;
@@ -20,14 +21,18 @@ public sealed class ProfileTooltipWindow : Window
     long _version;
     bool _loading, _refreshing, _notFound, _showGlance, _fetchStarted, _updateMain;
     Guid _requestId;
-    float _windowWidth = MinWidth;
+    float _windowWidth;
     public string? CurrentTargetName => _name;
     public string? CurrentTargetWorld => _world;
     public string? UnverifiedTarget { get; private set; }
 
-    const float MinWidth = 320f, MaxWidth = 420f, NamePadding = 120f;
-    const float ImgSize = 90f, ImgHeight = 112f; // 4:5 
-    const float CornerMargin = 30f, BottomOffset = 70f;
+    static float MinWidth => 320f * ImGuiHelpers.GlobalScale;
+    static float MaxWidth => 420f * ImGuiHelpers.GlobalScale;
+    static float NamePadding => 120f * ImGuiHelpers.GlobalScale;
+    static float ImgSize => 90f * ImGuiHelpers.GlobalScale;
+    static float ImgHeight => 112f * ImGuiHelpers.GlobalScale;
+    static float CornerMargin => 30f * ImGuiHelpers.GlobalScale;
+    static float BottomOffset => 70f * ImGuiHelpers.GlobalScale;
 
     const ImGuiWindowFlags TooltipFlags =
         ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoResize |
@@ -226,12 +231,13 @@ public sealed class ProfileTooltipWindow : Window
     public override void PreDraw()
     {
         _themeScope = Theme.PushStyle();
-        ImGui.SetNextWindowSizeConstraints(new Vector2(_windowWidth, 0), new Vector2(_windowWidth, 600));
+        var width = _windowWidth > 0 ? _windowWidth : MinWidth;
+        ImGui.SetNextWindowSizeConstraints(new Vector2(width, 0), new Vector2(width, 600 * ImGuiHelpers.GlobalScale));
 
         var vp = ImGui.GetMainViewport();
-        var estHeight = _data != null ? 320f : 160f;
+        var estHeight = (_data != null ? 320f : 160f) * ImGuiHelpers.GlobalScale;
         var pos = new Vector2(
-            vp.WorkPos.X + vp.WorkSize.X - _windowWidth - CornerMargin,
+            vp.WorkPos.X + vp.WorkSize.X - width - CornerMargin,
             vp.WorkPos.Y + vp.WorkSize.Y - estHeight - CornerMargin - BottomOffset);
 
         ImGui.SetNextWindowPos(pos, ImGuiCond.FirstUseEver);
@@ -274,7 +280,7 @@ public sealed class ProfileTooltipWindow : Window
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
 
         DrawCentered("Unverified RPHub User", Theme.GoldColor);
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
         DrawCentered("Profile hidden until verified", Theme.TextMuted);
 
         DrawVersion();
@@ -300,9 +306,8 @@ public sealed class ProfileTooltipWindow : Window
 
                 if (!string.IsNullOrEmpty(_data.Description))
                 {
-                    ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + available);
-                    ImGui.TextColored(Theme.ValueColor, _data.Description);
-                    ImGui.PopTextWrapPos();
+                    using (ImRaii.TextWrapPos(ImGui.GetCursorPosX() + available))
+                        ImGui.TextColored(Theme.ValueColor, _data.Description);
                 }
 
                 var hasCustomRace = !string.IsNullOrEmpty(_data.Race);
@@ -318,14 +323,14 @@ public sealed class ProfileTooltipWindow : Window
 
         ImGui.Spacing(); ImGui.Separator(); ImGui.Spacing();
 
-        ImGui.SetWindowFontScale(0.95f);
-
-        // Pronouns
-        //if (!string.IsNullOrEmpty(_data.Pronouns))
-        //{
-        //    ImGui.TextColored(Theme.LabelColor, $"Pronouns: {_data.Pronouns}");
-        //    ImGui.Spacing();
-        //}
+        using (Globals.Fonts.Small.Push())
+        {
+        var pronouns = _data.About?.FirstOrDefault(f => f.Label?.Contains("pronouns", StringComparison.OrdinalIgnoreCase) == true)?.Input;
+        if (!string.IsNullOrWhiteSpace(pronouns))
+        {
+            ImGui.TextColored(Theme.LabelColor, $"Pronouns: {pronouns}");
+            ImGui.Spacing();
+        }
 
         if (!string.IsNullOrEmpty(_data.CurrentStatus))
         {
@@ -340,8 +345,8 @@ public sealed class ProfileTooltipWindow : Window
         }
 
         DrawFooterHooks(_data);
+        }
 
-        ImGui.SetWindowFontScale(1f);
         DrawVersion();
     }
 
@@ -433,11 +438,11 @@ public sealed class ProfileTooltipWindow : Window
         var dl = ImGui.GetWindowDrawList();
         var start = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
-        const float pad = 8f;
+        var pad = 8f * ImGuiHelpers.GlobalScale;
 
         var text = content.Replace("\\n", "\n").Replace("/n", "\n");
         var textSize = ImGui.CalcTextSize(text, false, w - pad * 2);
-        var boxHeight = ImGui.GetTextLineHeight() + textSize.Y + 16f;
+        var boxHeight = ImGui.GetTextLineHeight() + textSize.Y + 16f * ImGuiHelpers.GlobalScale;
         var max = start + new Vector2(w, boxHeight);
 
         dl.AddRectFilled(start, max, Theme.Col(bgColor), 4f);
@@ -446,21 +451,20 @@ public sealed class ProfileTooltipWindow : Window
         using (ImRaii.Group())
         {
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
-            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4);
+            ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4 * ImGuiHelpers.GlobalScale);
             ImGui.TextColored(labelColor, label);
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
-            ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2);
-            ImGui.TextColored(Theme.ValueColor, text);
-            ImGui.PopTextWrapPos();
+            using (ImRaii.TextWrapPos(ImGui.GetCursorPosX() + w - pad * 2))
+                ImGui.TextColored(Theme.ValueColor, text);
         }
 
-        ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4));
+        ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4 * ImGuiHelpers.GlobalScale));
     }
 
     void DrawVersion()
     {
         ImGui.Spacing();
-        ImGui.SetWindowFontScale(Theme.SmallFont);
+        using var _ = Globals.Fonts.Small.Push();
 
         var width = ImGui.GetContentRegionAvail().X;
 
@@ -490,7 +494,7 @@ public sealed class ProfileTooltipWindow : Window
             if (!isSelfMute && _profileId != null && int.TryParse(_profileId, out var muteCharId))
             {
                 var isMuted = Globals.Mutes.IsMuted(muteCharId);
-                ImGui.SameLine(0, 4);
+                ImGui.SameLine(0, 4 * ImGuiHelpers.GlobalScale);
                 using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.5f })
                     .Push(ImGuiCol.ButtonHovered, isMuted ? Theme.Success with { W = 0.4f } : Theme.Error with { W = 0.4f })
                     .Push(ImGuiCol.Text, Theme.LabelColor))
@@ -518,8 +522,6 @@ public sealed class ProfileTooltipWindow : Window
         var size = ImGui.CalcTextSize(text);
         ImGui.SameLine(width - size.X);
         ImGui.TextColored(Theme.VersionColor, text);
-
-        ImGui.SetWindowFontScale(1f);
     }
 
     static void DrawCentered(string text, Vector4 color)
@@ -534,76 +536,73 @@ public sealed class ProfileTooltipWindow : Window
             return;
 
         ImGui.Separator();
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
 
         float windowVisibleX2 = ImGui.GetCursorScreenPos().X + ImGui.GetContentRegionAvail().X;
-        var style = ImGui.GetStyle();
         var drawList = ImGui.GetWindowDrawList();
 
         int maxDisplay = 6;
         float currentLineX = ImGui.GetCursorScreenPos().X;
 
-        for (int i = 0; i < data.Hooks.Count; i++)
+        using (Globals.Fonts.Small.Push())
         {
-            if (i >= maxDisplay)
+            for (int i = 0; i < data.Hooks.Count; i++)
             {
-                string moreText = $" +{data.Hooks.Count - maxDisplay} more";
-                ImGui.SetWindowFontScale(0.85f);
-                var moreSize = ImGui.CalcTextSize(moreText);
-                if (currentLineX + moreSize.X > windowVisibleX2)
-                    UI.Space(2); 
-
-                ImGui.TextColored(Theme.TextMuted, moreText);
-                ImGui.SetWindowFontScale(1.0f);
-                break;
-            }
-
-            var hook = data.Hooks[i];
-            var title = hook.Title ?? "Hook";
-
-            ImGui.SetWindowFontScale(0.85f);
-            var textSize = ImGui.CalcTextSize(title);
-            var padding = new Vector2(10f, 3f);
-            var boxSize = textSize + (padding * 2);
-
-            if (currentLineX + boxSize.X > windowVisibleX2 && i > 0)
-            {
-                UI.Space(2);
-                currentLineX = ImGui.GetCursorScreenPos().X;
-            }
-            else if (i > 0)
-            {
-                ImGui.SameLine(0, 5f);
-                currentLineX = ImGui.GetCursorScreenPos().X;
-            }
-
-            var p = ImGui.GetCursorScreenPos();
-            drawList.AddRectFilled(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.08f }), 12f);
-            drawList.AddRect(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.2f }), 12f);
-            drawList.AddText(p + padding, Theme.Col(Theme.GoldColor), title);
-
-            ImGui.InvisibleButton($"##hook_{i}", boxSize);
-
-            currentLineX = ImGui.GetItemRectMax().X + 5f;
-
-            if (ImGui.IsItemHovered())
-            {
-                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-                drawList.AddRect(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.6f }), 12f);
-
-                using var tip = ImRaii.Tooltip();
-                ImGui.PushTextWrapPos(260f);
-                ImGui.TextColored(Theme.GoldColor, title);
-                if (!string.IsNullOrEmpty(hook.Description))
+                if (i >= maxDisplay)
                 {
-                    ImGui.Separator();
-                    ImGui.TextColored(Theme.ValueColor, hook.Description);
+                    string moreText = $" +{data.Hooks.Count - maxDisplay} more";
+                    var moreSize = ImGui.CalcTextSize(moreText);
+                    if (currentLineX + moreSize.X > windowVisibleX2)
+                        UI.Space(2 * ImGuiHelpers.GlobalScale);
+
+                    ImGui.TextColored(Theme.TextMuted, moreText);
+                    break;
                 }
-                ImGui.PopTextWrapPos();
+
+                var hook = data.Hooks[i];
+                var title = hook.Title ?? "Hook";
+
+                var textSize = ImGui.CalcTextSize(title);
+                var padding = new Vector2(10f, 3f) * ImGuiHelpers.GlobalScale;
+                var boxSize = textSize + (padding * 2);
+
+                if (currentLineX + boxSize.X > windowVisibleX2 && i > 0)
+                {
+                    UI.Space(2 * ImGuiHelpers.GlobalScale);
+                    currentLineX = ImGui.GetCursorScreenPos().X;
+                }
+                else if (i > 0)
+                {
+                    ImGui.SameLine(0, 5f * ImGuiHelpers.GlobalScale);
+                    currentLineX = ImGui.GetCursorScreenPos().X;
+                }
+
+                var p = ImGui.GetCursorScreenPos();
+                drawList.AddRectFilled(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.08f }), 12f);
+                drawList.AddRect(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.2f }), 12f);
+                drawList.AddText(p + padding, Theme.Col(Theme.GoldColor), title);
+
+                ImGui.InvisibleButton($"##hook_{i}", boxSize);
+
+                currentLineX = ImGui.GetItemRectMax().X + 5f * ImGuiHelpers.GlobalScale;
+
+                if (ImGui.IsItemHovered())
+                {
+                    ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+                    drawList.AddRect(p, p + boxSize, Theme.Col(Theme.GoldColor with { W = 0.6f }), 12f);
+
+                    using var tip = ImRaii.Tooltip();
+                    using var _wrap = ImRaii.TextWrapPos(260f * ImGuiHelpers.GlobalScale);
+                    ImGui.TextColored(Theme.GoldColor, title);
+                    if (!string.IsNullOrEmpty(hook.Description))
+                    {
+                        ImGui.Separator();
+                        ImGui.TextColored(Theme.ValueColor, hook.Description);
+                    }
+                }
             }
-            ImGui.SetWindowFontScale(1.0f);
         }
 
-        UI.Space(2);
+        UI.Space(2 * ImGuiHelpers.GlobalScale);
     }
 }

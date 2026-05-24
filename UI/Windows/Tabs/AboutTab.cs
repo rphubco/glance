@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
@@ -33,7 +34,7 @@ public static class AboutTab
             var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
             if (icon.TryGetWrap(out var wrap, out _))
             {
-                var imgSize = new Vector2(48, 48);
+                var imgSize = new Vector2(48, 48) * ImGuiHelpers.GlobalScale;
                 ImGui.SetCursorPosX((w - imgSize.X) / 2);
                 ImGui.Image(wrap.Handle, imgSize);
             }
@@ -42,22 +43,20 @@ public static class AboutTab
 
         UI.Space(UI.Sm);
         using (Globals.Fonts.Title.Push()) Theme.Centered("Glance", Theme.GoldColor);
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        Theme.Centered($"v{Globals.Version} beta  •  by RPHub.co", Theme.TextMuted);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            Theme.Centered($"v{Globals.Version} beta  •  by RPHub.co", Theme.TextMuted);
 
         UI.Space(UI.Sm);
 
         var tagline = "Character profiles & roleplay coordination for FFXIV";
-        ImGui.SetWindowFontScale(0.95f);
-        Theme.Centered(tagline, Theme.ValueColor);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            Theme.Centered(tagline, Theme.ValueColor);
     }
 
     static void DrawFeatures(ImDrawListPtr dl, float w)
     {
         var p = ImGui.GetCursorScreenPos();
-        var boxH = 4 * 52f + UI.Sm * 2;
+        var boxH = 4 * 52f * ImGuiHelpers.GlobalScale + UI.Sm * 2;
         dl.AddRectFilled(p, p + new Vector2(w, boxH), Theme.Col(Theme.ButtonBg with { W = 0.25f }), 6);
         dl.AddRect(p, p + new Vector2(w, boxH), Theme.Col(Theme.FrameBorder with { W = 0.3f }), 6);
 
@@ -78,8 +77,8 @@ public static class AboutTab
     static void Feature(ImDrawListPtr dl, float w, FontAwesomeIcon icon, string title, string desc)
     {
         var p = ImGui.GetCursorScreenPos();
-        const float iconCol = 44f;
-        const float h = 48f;
+        var iconCol = 44f * ImGuiHelpers.GlobalScale;
+        var h = 48f * ImGuiHelpers.GlobalScale;
 
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -88,24 +87,21 @@ public static class AboutTab
             dl.AddText(p + new Vector2(UI.Lg + (iconCol - iconSz.X) / 2, (h - iconSz.Y) / 2), Theme.Col(Theme.GoldColor), iconStr);
         }
 
-        ImGui.SetCursorScreenPos(p + new Vector2(UI.Lg + iconCol, 6));
+        ImGui.SetCursorScreenPos(p + new Vector2(UI.Lg + iconCol, 6 * ImGuiHelpers.GlobalScale));
         ImGui.TextColored(Theme.LabelColor, title);
 
-        ImGui.SetCursorScreenPos(p + new Vector2(UI.Lg + iconCol, 24));
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        ImGui.PushTextWrapPos(p.X + w - UI.Lg);
-        ImGui.TextColored(Theme.TextMuted, desc);
-        ImGui.PopTextWrapPos();
-        ImGui.SetWindowFontScale(1f);
+        ImGui.SetCursorScreenPos(p + new Vector2(UI.Lg + iconCol, 24 * ImGuiHelpers.GlobalScale));
+        using (Globals.Fonts.Small.Push())
+        using (ImRaii.TextWrapPos(p.X + w - UI.Lg))
+            ImGui.TextColored(Theme.TextMuted, desc);
 
         ImGui.SetCursorScreenPos(p + new Vector2(0, h + UI.Xs));
     }
 
     static void DrawLinks(ImDrawListPtr dl, float w)
     {
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        Theme.Centered("LINKS", Theme.LabelColorDim);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            Theme.Centered("LINKS", Theme.LabelColorDim);
         UI.Space(UI.Sm);
 
         var btnW = (w - UI.Sm * 2) / 3;
@@ -119,7 +115,7 @@ public static class AboutTab
     static void LinkBtn(ImDrawListPtr dl, FontAwesomeIcon icon, string label, string url, float w)
     {
         var p = ImGui.GetCursorScreenPos();
-        const float h = 36f;
+        var h = 36f * ImGuiHelpers.GlobalScale;
 
         var clicked = ImGui.InvisibleButton($"##link_{label}", new Vector2(w, h));
         var hov = ImGui.IsItemHovered();
@@ -133,12 +129,13 @@ public static class AboutTab
             iconSz = ImGui.CalcTextSize(iconStr);
 
         var labelSz = ImGui.CalcTextSize(label);
-        var totalW = iconSz.X + 6 + labelSz.X;
+        var gap = 6 * ImGuiHelpers.GlobalScale;
+        var totalW = iconSz.X + gap + labelSz.X;
         var startX = p.X + (w - totalW) / 2;
 
         using (ImRaii.PushFont(UiBuilder.IconFont))
             dl.AddText(new Vector2(startX, p.Y + (h - iconSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColorDim), iconStr);
-        dl.AddText(new Vector2(startX + iconSz.X + 6, p.Y + (h - labelSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), label);
+        dl.AddText(new Vector2(startX + iconSz.X + gap, p.Y + (h - labelSz.Y) / 2), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), label);
 
         if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
         if (clicked) Dalamud.Utility.Util.OpenLink(url);
@@ -147,14 +144,15 @@ public static class AboutTab
     static void DrawFooter(ImDrawListPtr dl, float w)
     {
         var p = ImGui.GetCursorScreenPos();
-        dl.AddLine(p + new Vector2(40, 0), p + new Vector2(w - 40, 0), Theme.Col(Theme.SeparatorColor with { W = 0.3f }));
+        dl.AddLine(p + new Vector2(40 * ImGuiHelpers.GlobalScale, 0), p + new Vector2(w - 40 * ImGuiHelpers.GlobalScale, 0), Theme.Col(Theme.SeparatorColor with { W = 0.3f }));
         UI.Space(UI.Md);
 
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        Theme.Centered("Made with ♥ for the FFXIV RP community", Theme.TextMuted);
-        UI.Space(UI.Xs);
-        Theme.Centered("All FFXIV content © Square Enix Co., Ltd.", Theme.LabelColorDim with { W = 0.5f });
-        Theme.Centered("Glance is not affiliated with Square Enix, Dalamud, or XIVLauncher.", Theme.LabelColorDim with { W = 0.4f });
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+        {
+            Theme.Centered("Made with ♥ for the FFXIV RP community", Theme.TextMuted);
+            UI.Space(UI.Xs);
+            Theme.Centered("All FFXIV content © Square Enix Co., Ltd.", Theme.LabelColorDim with { W = 0.5f });
+            Theme.Centered("Glance is not affiliated with Square Enix, Dalamud, or XIVLauncher.", Theme.LabelColorDim with { W = 0.4f });
+        }
     }
 }

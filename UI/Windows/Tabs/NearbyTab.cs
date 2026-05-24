@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Game.ClientState.Objects.SubKinds;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
@@ -21,9 +22,9 @@ public static class NearbyTab
     static bool _scanning;
     static float _spinAngle;
 
-    const float CardHeight = 72f;
-    const float ImageSize = 56f;
-    const float CardSpacing = 6f;
+    static float CardHeight => 72f * ImGuiHelpers.GlobalScale;
+    static float ImageSize => 56f * ImGuiHelpers.GlobalScale;
+    static float CardSpacing => 6f * ImGuiHelpers.GlobalScale;
 
     public static void Draw()
     {
@@ -74,7 +75,7 @@ public static class NearbyTab
             ImGui.TextColored(Theme.Primary, "Nearby Profiles");
         }
 
-        ImGui.SameLine(0, 5f);
+        ImGui.SameLine(0, 5f * ImGuiHelpers.GlobalScale);
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             ImGui.SetWindowFontScale(0.9f);
@@ -104,13 +105,13 @@ public static class NearbyTab
         }
 
         var zone = GetZone();
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        var zoneSize = ImGui.CalcTextSize(zone);
-        ImGui.SetWindowFontScale(1f);
+        Vector2 zoneSize;
+        using (Globals.Fonts.Small.Push())
+            zoneSize = ImGui.CalcTextSize(zone);
 
-        var btnSize = new Vector2(28, 28);
+        var btnSize = new Vector2(28, 28) * ImGuiHelpers.GlobalScale;
         ImGui.SameLine();
-        ImGui.SetCursorPosX(w - zoneSize.X - btnSize.X - 12);
+        ImGui.SetCursorPosX(w - zoneSize.X - btnSize.X - 12 * ImGuiHelpers.GlobalScale);
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.4f })
             .Push(ImGuiCol.ButtonHovered, Theme.ButtonHovered)
             .Push(ImGuiCol.Text, Theme.LabelColor))
@@ -126,20 +127,20 @@ public static class NearbyTab
 
         ImGui.SameLine();
         ImGui.SetCursorPosX(w - zoneSize.X);
-        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4);
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        ImGui.TextColored(Theme.TextMuted, zone);
-        ImGui.SetWindowFontScale(1f);
+        ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(Theme.TextMuted, zone);
 
-        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 24));
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        if (_players.Count > 0)
-            ImGui.TextColored(Theme.Success, $"{_players.Count} roleplayer{(_players.Count != 1 ? "s" : "")} found");
-        else
-            ImGui.TextColored(Theme.TextMuted, "Scanning for users...");
-        ImGui.SetWindowFontScale(1f);
+        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 24 * ImGuiHelpers.GlobalScale));
+        using (Globals.Fonts.Small.Push())
+        {
+            if (_players.Count > 0)
+                ImGui.TextColored(Theme.Success, $"{_players.Count} roleplayer{(_players.Count != 1 ? "s" : "")} found");
+            else
+                ImGui.TextColored(Theme.TextMuted, "Scanning for users...");
+        }
 
-        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 42));
+        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 42 * ImGuiHelpers.GlobalScale));
     }
 
     static void DrawPlayerList()
@@ -173,12 +174,12 @@ public static class NearbyTab
         dl.AddRectFilled(startPos, cardMax, Theme.Col(bgCol), 6);
 
         if (isHovered || isSelected)
-            dl.AddRectFilled(startPos, startPos + new Vector2(3, CardHeight), Theme.Col(Theme.GoldColor), 2, ImDrawFlags.RoundCornersLeft);
+            dl.AddRectFilled(startPos, startPos + new Vector2(3 * ImGuiHelpers.GlobalScale, CardHeight), Theme.Col(Theme.GoldColor), 2, ImDrawFlags.RoundCornersLeft);
 
         var borderCol = isHovered ? Theme.GoldColor with { W = 0.6f } : Theme.FrameBorder with { W = 0.3f };
         dl.AddRect(startPos, cardMax, Theme.Col(borderCol), 6);
 
-        var imgPos = startPos + new Vector2(10, (CardHeight - ImageSize) / 2);
+        var imgPos = startPos + new Vector2(10 * ImGuiHelpers.GlobalScale, (CardHeight - ImageSize) / 2);
         var imgMax = imgPos + new Vector2(ImageSize);
 
         var tex = Globals.Images.Get(p.ProfileImage);
@@ -203,14 +204,14 @@ public static class NearbyTab
         }
         dl.AddRect(imgPos, imgMax, Theme.Col(Theme.FrameBorder with { W = 0.4f }), 4);
 
-        var textX = imgMax.X + 12;
-        var textStartY = startPos.Y + 10;
+        var textX = imgMax.X + 12 * ImGuiHelpers.GlobalScale;
+        var textStartY = startPos.Y + 10 * ImGuiHelpers.GlobalScale;
 
         ImGui.SetCursorScreenPos(new Vector2(textX, textStartY));
         using (Globals.Fonts.Header.Push())
         {
             var displayName = p.DisplayName ?? p.Name;
-            var maxTextW = w - (textX - startPos.X) - 80;
+            var maxTextW = w - (textX - startPos.X) - 80 * ImGuiHelpers.GlobalScale;
             if (ImGui.CalcTextSize(displayName).X > maxTextW)
                 displayName = Truncate(displayName, 16);
             ImGui.TextColored(Theme.NameColor, displayName);
@@ -218,37 +219,41 @@ public static class NearbyTab
 
         if (!string.IsNullOrEmpty(p.Title))
         {
-            ImGui.SetCursorScreenPos(new Vector2(textX, textStartY + 20));
-            ImGui.SetWindowFontScale(Theme.SmallFont);
-            var title = p.Title;
-            var maxTitleW = w - (textX - startPos.X) - 80;
-            if (ImGui.CalcTextSize(title).X > maxTitleW)
-                title = Truncate(title, 28);
-            ImGui.TextColored(Theme.TextMuted, title);
-            ImGui.SetWindowFontScale(1f);
+            ImGui.SetCursorScreenPos(new Vector2(textX, textStartY + 20 * ImGuiHelpers.GlobalScale));
+            using (Globals.Fonts.Small.Push())
+            {
+                var title = p.Title;
+                var maxTitleW = w - (textX - startPos.X) - 80 * ImGuiHelpers.GlobalScale;
+                if (ImGui.CalcTextSize(title).X > maxTitleW)
+                    title = Truncate(title, 28);
+                ImGui.TextColored(Theme.TextMuted, title);
+            }
         }
 
-        var bottomY = startPos.Y + CardHeight - 22;
+        var bottomY = startPos.Y + CardHeight - 22 * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorScreenPos(new Vector2(textX, bottomY));
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-
         if (myWorld != null && myWorld != p.World)
         {
             using (ImRaii.PushFont(UiBuilder.IconFont))
+            {
+                ImGui.SetWindowFontScale(0.85f);
                 ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
-            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{p.Name} is visiting from {p.World}"); 
-
-            ImGui.SameLine(0, 4);
-            ImGui.TextColored(Theme.WorldColor, p.World);
-            ImGui.SameLine(0, 12);
+                ImGui.SetWindowFontScale(1f);
+            }
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip($"{p.Name} is visiting from {p.World}");
+            ImGui.SameLine(0, 4 * ImGuiHelpers.GlobalScale);
+            using (Globals.Fonts.Small.Push())
+                ImGui.TextColored(Theme.WorldColor, p.World);
+            ImGui.SameLine(0, 12 * ImGuiHelpers.GlobalScale);
+        }
+        using (Globals.Fonts.Small.Push())
+        {
+            var (proximityText, proximityCol) = GetProximityInfo(p.Proximity);
+            ImGui.TextColored(proximityCol, proximityText);
         }
 
-        var (proximityText, proximityCol) = GetProximityInfo(p.Proximity);
-        ImGui.TextColored(proximityCol, proximityText);
-        ImGui.SetWindowFontScale(1f);
-
-        var btnSize = new Vector2(28, 28);
-        var btnPos = new Vector2(startPos.X + w - btnSize.X - 10, startPos.Y + (CardHeight - btnSize.Y) / 2);
+        var btnSize = new Vector2(28, 28) * ImGuiHelpers.GlobalScale;
+        var btnPos = new Vector2(startPos.X + w - btnSize.X - 10 * ImGuiHelpers.GlobalScale, startPos.Y + (CardHeight - btnSize.Y) / 2);
         ImGui.SetCursorScreenPos(btnPos);
 
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.6f })
@@ -269,7 +274,7 @@ public static class NearbyTab
         }
 
         ImGui.SetCursorScreenPos(startPos);
-        if (ImGui.InvisibleButton($"##player_{p.Key}", new Vector2(w - btnSize.X - 20, CardHeight)))
+        if (ImGui.InvisibleButton($"##player_{p.Key}", new Vector2(w - btnSize.X - 20 * ImGuiHelpers.GlobalScale, CardHeight)))
         {
             if (_hoveredKey == p.Key)
             {
@@ -339,7 +344,7 @@ public static class NearbyTab
             ImGui.SetWindowFontScale(1f);
         }
 
-        UI.Space(50);
+        UI.Space(50 * ImGuiHelpers.GlobalScale);
         Theme.Centered("Beacon Not Enabled", Theme.LabelColor);
         UI.Space(UI.Xs);
 
@@ -354,15 +359,15 @@ public static class NearbyTab
             Theme.Centered("to discover nearby roleplayers.", Theme.TextMuted);
         }
 
-        UI.Space(16);
+        UI.Space(16 * ImGuiHelpers.GlobalScale);
 
-        var buttonW = 140f;
+        var buttonW = 140f * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorPosX((avail.X - buttonW) / 2);
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
             .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
             .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            if (ImGui.Button("Open Settings", new Vector2(buttonW, 30)))
+            if (ImGui.Button("Open Settings", new Vector2(buttonW, 30 * ImGuiHelpers.GlobalScale)))
             {
                 Globals.MainWindow.SetTab(3);
                 Sound.PlayOpen();
@@ -387,7 +392,7 @@ public static class NearbyTab
             ImGui.SetWindowFontScale(1f);
         }
 
-        UI.Space(40);
+        UI.Space(40 * ImGuiHelpers.GlobalScale);
         Theme.Centered("Not Logged In", Theme.LabelColor);
         UI.Space(UI.Xs);
         Theme.Centered("Connect your RPHub account to see", Theme.TextMuted);
@@ -409,12 +414,12 @@ public static class NearbyTab
         {
             var a = _spinAngle + i * (MathF.PI / 4);
             var alpha = (i + 1) / 8f;
-            var p1 = spinPos + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 8;
-            var p2 = spinPos + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 16;
+            var p1 = spinPos + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 8 * ImGuiHelpers.GlobalScale;
+            var p2 = spinPos + new Vector2(MathF.Cos(a), MathF.Sin(a)) * 16 * ImGuiHelpers.GlobalScale;
             dl.AddLine(p1, p2, Theme.Col(Theme.GoldColor with { W = alpha }), 2.5f);
         }
 
-        UI.Space(32);
+        UI.Space(32 * ImGuiHelpers.GlobalScale);
         Theme.Centered("Scanning nearby players...", Theme.LabelColor);
         UI.Space(UI.Xs);
         Theme.Centered("Looking for RPHub profiles", Theme.TextMuted);

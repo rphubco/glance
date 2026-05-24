@@ -5,6 +5,7 @@ using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
 using Glance.Models;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.UI.Tabs;
 using System;
@@ -17,9 +18,9 @@ public sealed class ProfileViewWindow : Window
 
     public ProfileViewWindow() : base("Profile##GlanceView", ImGuiWindowFlags.NoCollapse)
     {
-        Size = new Vector2(450, 600);
+        Size = new Vector2(450, 600) * ImGuiHelpers.GlobalScale;
         SizeCondition = ImGuiCond.FirstUseEver;
-        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(300, 200), MaximumSize = new Vector2(600, 800) };
+        SizeConstraints = new WindowSizeConstraints { MinimumSize = new Vector2(300, 200) * ImGuiHelpers.GlobalScale, MaximumSize = new Vector2(600, 800) * ImGuiHelpers.GlobalScale };
     }
 
     public void Show(string? name, string? world, ProfileData? data, string? profileId = null)

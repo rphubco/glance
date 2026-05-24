@@ -4,6 +4,7 @@
     "Punchline": "View FFXIV roleplay profiles in-game.",
     "Description": "Displays RPHub character profiles when targeting other players. Connect your RPHub.co account to share your roleplay profile with others.",
     "ApplicableVersion": "any",
+    "IconUrl": "https://raw.githubusercontent.com/rphubco/glance/master/icon.png",
     "Tags": [
         "rp",
         "roleplay",

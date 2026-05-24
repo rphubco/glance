@@ -2,8 +2,10 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
+using Glance.Core;
 using System;
 using System.Numerics;
 
@@ -56,7 +58,7 @@ Privacy Policy: https://rphub.co/privacy-policy";
     public TosWindow() : base("Glance - Terms of Service##TOS",
         ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoMove)
     {
-        Size = new Vector2(500, 450);
+        Size = new Vector2(500, 450) * ImGuiHelpers.GlobalScale;
         SizeCondition = ImGuiCond.Always;
         PositionCondition = ImGuiCond.Always;
     }
@@ -68,9 +70,9 @@ Privacy Policy: https://rphub.co/privacy-policy";
     {
         var viewport = ImGui.GetMainViewport();
         var center = viewport.GetCenter();
-        Position = new Vector2(center.X - 250, center.Y - 225);
+        Position = new Vector2(center.X - 250 * ImGuiHelpers.GlobalScale, center.Y - 225 * ImGuiHelpers.GlobalScale);
 
-        _styleScope = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(16, 16));
+        _styleScope = ImRaii.PushStyle(ImGuiStyleVar.WindowPadding, new Vector2(16, 16) * ImGuiHelpers.GlobalScale);
         _colorScope = ImRaii.PushColor(ImGuiCol.WindowBg, new Vector4(0.08f, 0.08f, 0.10f, 0.98f))
             .Push(ImGuiCol.Border, new Vector4(0.7f, 0.55f, 0.3f, 0.5f));
     }
@@ -87,12 +89,8 @@ Privacy Policy: https://rphub.co/privacy-policy";
     {
         var avail = ImGui.GetContentRegionAvail();
 
-        using (ImRaii.PushFont(UiBuilder.DefaultFont))
-        {
-            ImGui.SetWindowFontScale(1.2f);
+        using (Globals.Fonts.Header.Push())
             CenteredText("Terms of Service", new Vector4(0.85f, 0.65f, 0.3f, 1f));
-            ImGui.SetWindowFontScale(1f);
-        }
 
         ImGui.Spacing();
         ImGui.Separator();
@@ -108,7 +106,7 @@ Privacy Policy: https://rphub.co/privacy-policy";
 
         ImGui.Spacing();
 
-        var boxHeight = avail.Y - 110;
+        var boxHeight = avail.Y - 110 * ImGuiHelpers.GlobalScale;
         using (ImRaii.PushColor(ImGuiCol.ChildBg, new Vector4(0.05f, 0.05f, 0.07f, 1f)))
         using (ImRaii.PushColor(ImGuiCol.Border, new Vector4(0.3f, 0.3f, 0.35f, 1f)))
         using (ImRaii.PushStyle(ImGuiStyleVar.ChildRounding, 4f))
@@ -118,27 +116,23 @@ Privacy Policy: https://rphub.co/privacy-policy";
             if (child)
             {
                 using (ImRaii.PushColor(ImGuiCol.Text, new Vector4(0.85f, 0.85f, 0.85f, 1f)))
-                {
-                    ImGui.SetWindowFontScale(0.95f);
-                    ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X - 8);
+                using (Globals.Fonts.Small.Push())
+                using (ImRaii.TextWrapPos(ImGui.GetContentRegionAvail().X - 8 * ImGuiHelpers.GlobalScale))
                     ImGui.TextWrapped(TOS_TEXT);
-                    ImGui.PopTextWrapPos();
-                    ImGui.SetWindowFontScale(1f);
-                }
 
                 _scrollY = ImGui.GetScrollY();
                 _maxScroll = ImGui.GetScrollMaxY();
 
-                if (_maxScroll > 0 && _scrollY >= _maxScroll - 10f)
+                if (_maxScroll > 0 && _scrollY >= _maxScroll - 10f * ImGuiHelpers.GlobalScale)
                     _hasScrolledToBottom = true;
             }
         }
 
         ImGui.Spacing();
 
-        var buttonWidth = 140f;
-        var buttonHeight = 32f;
-        var spacing = 20f;
+        var buttonWidth = 140f * ImGuiHelpers.GlobalScale;
+        var buttonHeight = 32f * ImGuiHelpers.GlobalScale;
+        var spacing = 20f * ImGuiHelpers.GlobalScale;
         var totalWidth = buttonWidth * 2 + spacing;
         var startX = (avail.X - totalWidth) / 2;
 

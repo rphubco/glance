@@ -2,14 +2,21 @@ namespace Glance.Utils;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
+using Glance.Core;
 using System;
 using System.Collections.Generic;
 using System.Numerics;
 
 public static class UI
 {
-    public const float XXs = 2, Xs = 4, Sm = 8, Md = 12, Lg = 16, Xl = 24;
+    public static float XXs => 2 * ImGuiHelpers.GlobalScale;
+    public static float Xs => 4 * ImGuiHelpers.GlobalScale;
+    public static float Sm => 8 * ImGuiHelpers.GlobalScale;
+    public static float Md => 12 * ImGuiHelpers.GlobalScale;
+    public static float Lg => 16 * ImGuiHelpers.GlobalScale;
+    public static float Xl => 24 * ImGuiHelpers.GlobalScale;
 
     static readonly Dictionary<string, float> _a = [], _f = [];
 
@@ -26,7 +33,8 @@ public static class UI
         Space(Sm);
     }
 
-    public static void Space(float h = Sm) => ImGui.Dummy(new Vector2(0, h));
+    public static void Space() => Space(Sm);
+    public static void Space(float h) => ImGui.Dummy(new Vector2(0, h));
 
     public static void Divider()
     {
@@ -40,7 +48,7 @@ public static class UI
     {
         var dl = ImGui.GetWindowDrawList();
         var p = ImGui.GetCursorScreenPos();
-        const float h = 50f;
+        var h = 50f * ImGuiHelpers.GlobalScale;
         var clicked = ImGui.InvisibleButton($"##qa_{label}", new Vector2(w, h));
         var hov = ImGui.IsItemHovered();
         dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col(hov ? Theme.ButtonHovered : Theme.ButtonBg), 6f);
@@ -48,24 +56,26 @@ public static class UI
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
             var isz = ImGui.CalcTextSize(icon);
-            dl.AddText(p + new Vector2((w - isz.X) / 2, 10), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), icon);
+            dl.AddText(p + new Vector2((w - isz.X) / 2, 10 * ImGuiHelpers.GlobalScale), Theme.Col(hov ? Theme.GoldColor : Theme.LabelColor), icon);
         }
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        var lsz = ImGui.CalcTextSize(label);
-        dl.AddText(p + new Vector2((w - lsz.X) / 2, h - lsz.Y - 6), Theme.Col(Theme.ValueColor), label);
-        ImGui.SetWindowFontScale(1f);
+        Vector2 lsz;
+        using (Globals.Fonts.Small.Push())
+        {
+            lsz = ImGui.CalcTextSize(label);
+            dl.AddText(p + new Vector2((w - lsz.X) / 2, h - lsz.Y - 6 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.ValueColor), label);
+        }
         if (hov) { ImGui.SetMouseCursor(ImGuiMouseCursor.Hand); if (tip != null) ImGui.SetTooltip(tip); }
         return clicked;
     }
     public static void QuickActions(params (string Icon, string Label, string? Tip, Action Act)[] acts)
     {
         if (acts.Length == 0) return;
-        var w = (ImGui.GetContentRegionAvail().X - 4 * (acts.Length - 1)) / acts.Length;
+        var w = (ImGui.GetContentRegionAvail().X - 4 * ImGuiHelpers.GlobalScale * (acts.Length - 1)) / acts.Length;
         for (var i = 0; i < acts.Length; i++)
         {
-            if (i > 0) { ImGui.SameLine(); ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 4); }
+            if (i > 0) { ImGui.SameLine(); ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 4 * ImGuiHelpers.GlobalScale); }
             if (QuickAction(acts[i].Icon, acts[i].Label, w, acts[i].Tip)) acts[i].Act();
         }
-        Space(8);
+        Space(Sm);
     }
 }

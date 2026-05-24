@@ -2,6 +2,7 @@ namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
@@ -14,10 +15,10 @@ using System.Threading.Tasks;
 
 public sealed class ToolboxWindow : Window
 {
-    const float IconSize = 28f;
-    const float Spacing = 4f;
-    const float PickerIconSize = 32f;
-    const float PickerSpacing = 4f;
+    static float IconSize => 28f * ImGuiHelpers.GlobalScale;
+    static float Spacing => 4f * ImGuiHelpers.GlobalScale;
+    static float PickerIconSize => 32f * ImGuiHelpers.GlobalScale;
+    static float PickerSpacing => 4f * ImGuiHelpers.GlobalScale;
 
     string _icEdit = "", _oocEdit = "";
     bool _saving;
@@ -50,7 +51,7 @@ public sealed class ToolboxWindow : Window
     {
         _themeScope = Theme.PushStyle();
         var vp = ImGui.GetMainViewport();
-        ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + 16, vp.WorkPos.Y + vp.WorkSize.Y - 80), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + 16 * ImGuiHelpers.GlobalScale, vp.WorkPos.Y + vp.WorkSize.Y - 80 * ImGuiHelpers.GlobalScale), ImGuiCond.FirstUseEver);
         ImGui.SetNextWindowBgAlpha(0.9f);
     }
 
@@ -60,9 +61,8 @@ public sealed class ToolboxWindow : Window
     {
         var dl = ImGui.GetWindowDrawList();
 
-        ImGui.SetWindowFontScale(0.85f);
-        ImGui.TextColored(Theme.LabelColorDim, "Toolbox");
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(Theme.LabelColorDim, "Toolbox");
 
         if (Globals.PlayerState == null)
         {
@@ -122,7 +122,14 @@ public sealed class ToolboxWindow : Window
         }
 
         var currentName = localPlayer.CharacterName.ToString();
-        var currentWorld = localPlayer.HomeWorld.Value.Name.ToString();
+        var currentWorld = localPlayer.HomeWorld.ValueNullable?.Name.ToString();
+        if (string.IsNullOrEmpty(currentWorld))
+        {
+            _activeProfileId = null;
+            _activeProfile = null;
+            _initialized = false;
+            return;
+        }
 
         var chars = Globals.Profiles.Data?.Characters;
         if (chars == null || chars.Length == 0)
@@ -186,7 +193,7 @@ public sealed class ToolboxWindow : Window
                 var (u0, u1) = aspect > 1
                     ? (new Vector2((1f - 1f / aspect) / 2f, 0), new Vector2(1f - (1f - 1f / aspect) / 2f, 1))
                     : (new Vector2(0, (1f - aspect) / 2f), new Vector2(1, 1f - (1f - aspect) / 2f));
-                dl.AddImageRounded(tex.Handle, pos + new Vector2(2), max - new Vector2(2), u0, u1, 0xFFFFFFFF, 3);
+                dl.AddImageRounded(tex.Handle, pos + new Vector2(2 * ImGuiHelpers.GlobalScale), max - new Vector2(2 * ImGuiHelpers.GlobalScale), u0, u1, 0xFFFFFFFF, 3);
             }
         }
         else
@@ -223,7 +230,7 @@ public sealed class ToolboxWindow : Window
         dl.AddRect(pos, max, Theme.Col(Theme.FrameBorder with { W = active ? 0.5f : 0.3f }), 4);
 
         if (active)
-            dl.AddRectFilled(pos + new Vector2(1), max - new Vector2(1), Theme.Col(Theme.LabelColor with { W = 0.08f }), 3);
+            dl.AddRectFilled(pos + new Vector2(1 * ImGuiHelpers.GlobalScale), max - new Vector2(1 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.LabelColor with { W = 0.08f }), 3);
 
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
@@ -265,7 +272,7 @@ public sealed class ToolboxWindow : Window
 
     void DrawICPopup()
     {
-        ImGui.SetNextWindowSize(new Vector2(260, 0), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(260 * ImGuiHelpers.GlobalScale, 0), ImGuiCond.Always);
         using var popup = ImRaii.Popup("##toolbox_ic");
         if (!popup.Success) return;
 
@@ -273,7 +280,7 @@ public sealed class ToolboxWindow : Window
         ImGui.Separator();
 
         using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            ImGui.InputTextMultiline("##icedit", ref _icEdit, 150, new Vector2(244, 70));
+            ImGui.InputTextMultiline("##icedit", ref _icEdit, 150, new Vector2(244, 70) * ImGuiHelpers.GlobalScale);
 
         ImGui.Spacing();
 
@@ -282,7 +289,7 @@ public sealed class ToolboxWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
             .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20) * ImGuiHelpers.GlobalScale))
             {
                 SaveField("ic");
                 Sound.PlaySuccess();
@@ -294,13 +301,13 @@ public sealed class ToolboxWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
             .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
+            if (ImGui.Button("Cancel", new Vector2(50, 20) * ImGuiHelpers.GlobalScale)) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
         }
     }
 
     void DrawOOCPopup()
     {
-        ImGui.SetNextWindowSize(new Vector2(260, 0), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(260 * ImGuiHelpers.GlobalScale, 0), ImGuiCond.Always);
         using var popup = ImRaii.Popup("##toolbox_ooc");
         if (!popup.Success) return;
 
@@ -308,7 +315,7 @@ public sealed class ToolboxWindow : Window
         ImGui.Separator();
 
         using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            ImGui.InputTextMultiline("##oocedit", ref _oocEdit, 250, new Vector2(244, 70));
+            ImGui.InputTextMultiline("##oocedit", ref _oocEdit, 250, new Vector2(244, 70) * ImGuiHelpers.GlobalScale);
 
         ImGui.Spacing();
 
@@ -317,7 +324,7 @@ public sealed class ToolboxWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
             .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20)))
+            if (ImGui.Button(_saving ? "..." : "Save", new Vector2(50, 20) * ImGuiHelpers.GlobalScale))
             {
                 SaveField("ooc");
                 Sound.PlaySuccess();
@@ -329,13 +336,13 @@ public sealed class ToolboxWindow : Window
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
             .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            if (ImGui.Button("Cancel", new Vector2(50, 20))) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
+            if (ImGui.Button("Cancel", new Vector2(50, 20) * ImGuiHelpers.GlobalScale)) { ImGui.CloseCurrentPopup(); Sound.PlayCancel(); }
         }
     }
 
     void DrawIconPickerPopup()
     {
-        ImGui.SetNextWindowSize(new Vector2(320, 0), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(320 * ImGuiHelpers.GlobalScale, 0), ImGuiCond.Always);
         using var popup = ImRaii.Popup("##toolbox_icon");
         if (!popup.Success) return;
 
@@ -350,7 +357,7 @@ public sealed class ToolboxWindow : Window
             using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
                 .Push(ImGuiCol.Text, Theme.LabelColor))
             {
-                if (ImGui.Button("Reset to Default", new Vector2(-1, 22)))
+                if (ImGui.Button("Reset to Default", new Vector2(-1, 22 * ImGuiHelpers.GlobalScale)))
                 {
                     Globals.Config.NameplateCustomIconId = 0;
                     Globals.Config.Save();
@@ -409,12 +416,12 @@ public sealed class ToolboxWindow : Window
             if (isSelected)
             {
                 ImGui.GetWindowDrawList().AddRectFilled(
-                    cursor - new Vector2(2),
-                    cursor + new Vector2(PickerIconSize + 2),
+                    cursor - new Vector2(2 * ImGuiHelpers.GlobalScale),
+                    cursor + new Vector2(PickerIconSize + 2 * ImGuiHelpers.GlobalScale),
                     Theme.Col(Theme.GoldColor with { W = 0.3f }), 4);
                 ImGui.GetWindowDrawList().AddRect(
-                    cursor - new Vector2(2),
-                    cursor + new Vector2(PickerIconSize + 2),
+                    cursor - new Vector2(2 * ImGuiHelpers.GlobalScale),
+                    cursor + new Vector2(PickerIconSize + 2 * ImGuiHelpers.GlobalScale),
                     Theme.Col(Theme.GoldColor with { W = 0.8f }), 4, ImDrawFlags.None, 2);
             }
 
@@ -442,8 +449,8 @@ public sealed class ToolboxWindow : Window
                 if (!isSelected)
                 {
                     ImGui.GetWindowDrawList().AddRect(
-                        cursor - new Vector2(1),
-                        cursor + new Vector2(PickerIconSize + 1),
+                        cursor - new Vector2(1 * ImGuiHelpers.GlobalScale),
+                        cursor + new Vector2(PickerIconSize + 1 * ImGuiHelpers.GlobalScale),
                         Theme.Col(Theme.LabelColor with { W = 0.5f }), 4);
                 }
                 ImGui.SetTooltip(entry.Label);

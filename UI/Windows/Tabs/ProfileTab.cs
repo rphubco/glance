@@ -3,6 +3,7 @@ namespace Glance.UI.Tabs;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Core;
 using Glance.Models;
@@ -204,10 +205,11 @@ public static class ProfileTab
         var p = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
 
-        const float imgW = 140, imgH = 150, pad = UI.Lg;
-        const float glanceBoxSize = 24f;
-        const float glanceSpacing = 4f;
-        const float glanceRowHeight = glanceBoxSize + 8;
+        var imgW = 140 * ImGuiHelpers.GlobalScale;
+        var imgH = 150 * ImGuiHelpers.GlobalScale;
+        var pad = UI.Lg;
+        var glanceBoxSize = 24f * ImGuiHelpers.GlobalScale;
+        var glanceSpacing = 4f * ImGuiHelpers.GlobalScale;
         var h = imgH + pad * 2;
 
         dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col(Theme.FrameBorderInner with { W = 0.15f }), 8);
@@ -227,31 +229,33 @@ public static class ProfileTab
         dl.AddRect(ip, ie, Theme.Col(Theme.FrameBorderInner with { W = 0.6f }), 6);
         DrawGlances(dl, p.X + pad, p.Y + pad + imgH - (glanceBoxSize / 2), imgW, glanceBoxSize, glanceSpacing, data);
         ImGui.SetCursorScreenPos(p + new Vector2(pad + imgW + UI.Lg, pad));
-        var headerGroup = ImRaii.Group();
-        using (Globals.Fonts.Title.Push()) ImGui.TextColored(Theme.NameColor, data?.Name ?? name ?? "Unknown");
-        if (!string.IsNullOrEmpty(data?.Description))
+        using (ImRaii.Group())
         {
-            ImGui.PushTextWrapPos(p.X + w - pad - 40);
-            ImGui.TextColored(Theme.ValueColor, data.Description);
-            ImGui.PopTextWrapPos();
-        }
-        else ImGui.TextColored(Theme.TextMuted, "No description provided");
+            using (Globals.Fonts.Title.Push()) ImGui.TextColored(Theme.NameColor, data?.Name ?? name ?? "Unknown");
+            if (!string.IsNullOrEmpty(data?.Description))
+            {
+                using (ImRaii.TextWrapPos(p.X + w - pad - 40 * ImGuiHelpers.GlobalScale))
+                    ImGui.TextColored(Theme.ValueColor, data.Description);
+            }
+            else ImGui.TextColored(Theme.TextMuted, "No description provided");
 
-        UI.Space(UI.Sm);
-        var meta = string.Join("  •  ", new[] { data?.Race, data?.Clan }.Where(s => !string.IsNullOrEmpty(s)));
-        if (meta.Length > 0) { IconText(FontAwesomeIcon.Dna, Theme.LabelColorDim, meta); UI.Space(UI.Xs); }
-        IconText(FontAwesomeIcon.Globe, Theme.WorldColor, $"{name} @ {world}");
-        if (!string.IsNullOrEmpty(data?.FreeCompany)) { UI.Space(UI.Xs); IconText(FontAwesomeIcon.Shield, Theme.LabelColor, data.FreeCompany); }
-        headerGroup.Dispose();
-        var bx = p.X + w - pad - 24;
+            UI.Space(UI.Sm);
+            var meta = string.Join("  •  ", new[] { data?.Race, data?.Clan }.Where(s => !string.IsNullOrEmpty(s)));
+            if (meta.Length > 0) { IconText(FontAwesomeIcon.Dna, Theme.LabelColorDim, meta); UI.Space(UI.Xs); }
+            var pronouns = data?.About?.FirstOrDefault(f => f.Label?.Contains("pronouns", StringComparison.OrdinalIgnoreCase) == true)?.Input;
+            if (!string.IsNullOrWhiteSpace(pronouns)) { IconText(FontAwesomeIcon.IdBadge, Theme.LabelColor, pronouns); UI.Space(UI.Xs); }
+            IconText(FontAwesomeIcon.Globe, Theme.WorldColor, $"{name} @ {world}");
+            if (!string.IsNullOrEmpty(data?.FreeCompany)) { UI.Space(UI.Xs); IconText(FontAwesomeIcon.Shield, Theme.LabelColor, data.FreeCompany); }
+        }
+        var bx = p.X + w - pad - 24 * ImGuiHelpers.GlobalScale;
         if (profileId != null && IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.ExternalLinkAlt, "View on RPHub"))
             Dalamud.Utility.Util.OpenLink($"https://rphub.co/ch/{profileId}");
-        bx -= 28;
+        bx -= 28 * ImGuiHelpers.GlobalScale;
         if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Sync, "Refresh")) Refresh(name, world);
-        if (canEdit) { bx -= 28; if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Edit, "Edit Profile")) ProfileEditor.OpenForEdit(data, profileId); }
+        if (canEdit) { bx -= 28 * ImGuiHelpers.GlobalScale; if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.Edit, "Edit Profile")) ProfileEditor.OpenForEdit(data, profileId); }
         if (!canEdit && profileId != null && int.TryParse(profileId, out var muteId))
         {
-            bx -= 28;
+            bx -= 28 * ImGuiHelpers.GlobalScale;
             var isMuted = Globals.Mutes.IsMuted(muteId);
             if (IconBtn(dl, new Vector2(bx, p.Y + pad), isMuted ? FontAwesomeIcon.VolumeUp : FontAwesomeIcon.VolumeMute, isMuted ? "Unmute Character" : "You will no longer see this profile.\nTo unmute, check Glance settings."))
             {
@@ -265,7 +269,7 @@ public static class ProfileTab
         }
         if (!canEdit && profileId != null)
         {
-            bx -= 28;
+            bx -= 28 * ImGuiHelpers.GlobalScale;
             if (IconBtn(dl, new Vector2(bx, p.Y + pad), FontAwesomeIcon.ExclamationTriangle, "Report Profile"))
             {
                 ReportWindow.Open(name, world, profileId);
@@ -300,8 +304,8 @@ public static class ProfileTab
                     var tex = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(g.IconId));
                     if (tex.TryGetWrap(out var wrap, out _))
                     {
-                        var iconSz = new Vector2(boxSize - 4);
-                        dl.AddImage(wrap.Handle, pos + new Vector2(2), pos + new Vector2(2) + iconSz);
+                        var iconSz = new Vector2(boxSize - 4 * ImGuiHelpers.GlobalScale);
+                        dl.AddImage(wrap.Handle, pos + new Vector2(2 * ImGuiHelpers.GlobalScale), pos + new Vector2(2 * ImGuiHelpers.GlobalScale) + iconSz);
                     }
                 }
                 catch { }
@@ -319,9 +323,8 @@ public static class ProfileTab
                     if (!string.IsNullOrEmpty(g.Value))
                     {
                         ImGui.Spacing();
-                        ImGui.PushTextWrapPos(250);
-                        ImGui.TextColored(Theme.ValueColor, g.Value);
-                        ImGui.PopTextWrapPos();
+                        using (ImRaii.TextWrapPos(250 * ImGuiHelpers.GlobalScale))
+                            ImGui.TextColored(Theme.ValueColor, g.Value);
                     }
                 }
             }
@@ -348,7 +351,7 @@ public static class ProfileTab
             using (ImRaii.PushColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg)
                 .Push(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor))
             {
-                if (ImGui.Button(tabs[i], new Vector2(tw, 30)))
+                if (ImGui.Button(tabs[i], new Vector2(tw, 30 * ImGuiHelpers.GlobalScale)))
                 {
                     if (_tab != i)
                     {
@@ -363,15 +366,17 @@ public static class ProfileTab
     static void DrawInfoBox(string label, string content, Vector4 labelColor, Vector4 bgColor)
     {
         var dl = ImGui.GetWindowDrawList(); var start = ImGui.GetCursorScreenPos(); var w = ImGui.GetContentRegionAvail().X;
-        var text = content.Replace("\\n", "\n").Replace("/n", "\n"); const float pad = 8f;
-        var textSize = ImGui.CalcTextSize(text, false, w - pad * 2); var boxHeight = ImGui.GetTextLineHeight() + textSize.Y + 16f; var max = start + new Vector2(w, boxHeight);
+        var text = content.Replace("\\n", "\n").Replace("/n", "\n"); var pad = 8f * ImGuiHelpers.GlobalScale;
+        var textSize = ImGui.CalcTextSize(text, false, w - pad * 2); var boxHeight = ImGui.GetTextLineHeight() + textSize.Y + 16f * ImGuiHelpers.GlobalScale; var max = start + new Vector2(w, boxHeight);
         dl.AddRectFilled(start, max, Theme.Col(bgColor), 4f); dl.AddRect(start, max, Theme.Col(labelColor with { W = 0.4f }), 4f);
         using (ImRaii.Group())
         {
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4); ImGui.TextColored(labelColor, label);
-            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + w - pad * 2); ImGui.TextColored(Theme.ValueColor, text); ImGui.PopTextWrapPos();
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad); ImGui.SetCursorPosY(ImGui.GetCursorPosY() + 4 * ImGuiHelpers.GlobalScale); ImGui.TextColored(labelColor, label);
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + pad);
+            using (ImRaii.TextWrapPos(ImGui.GetCursorPosX() + w - pad * 2))
+                ImGui.TextColored(Theme.ValueColor, text);
         }
-        ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4));
+        ImGui.SetCursorScreenPos(new Vector2(start.X, max.Y + 4 * ImGuiHelpers.GlobalScale));
     }
 
     static void GeneralTab(ProfileData? data)
@@ -387,13 +392,12 @@ public static class ProfileTab
             using var table = ImRaii.Table("##about", 2, ImGuiTableFlags.SizingStretchSame);
             if (table)
             {
-                foreach (var f in data.About.Where(f => !string.IsNullOrEmpty(f.Input)))
+                foreach (var f in data.About.Where(f => !string.IsNullOrEmpty(f.Input) && f.Label?.Contains("pronouns", StringComparison.OrdinalIgnoreCase) != true))
                 {
                     ImGui.TableNextColumn();
                     ImGui.TextColored(Theme.LabelColorDim, f.Label ?? "Info");
-                    ImGui.PushTextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X);
-                    ImGui.TextColored(Theme.ValueColor, f.Input);
-                    ImGui.PopTextWrapPos();
+                    using (ImRaii.TextWrapPos(ImGui.GetCursorPosX() + ImGui.GetContentRegionAvail().X))
+                        ImGui.TextColored(Theme.ValueColor, f.Input);
                     UI.Space(UI.Xs);
                 }
             }
@@ -406,10 +410,13 @@ public static class ProfileTab
         foreach (var h in data.Hooks)
         {
             var dl = ImGui.GetWindowDrawList(); var p = ImGui.GetCursorScreenPos(); var w = ImGui.GetContentRegionAvail().X;
-            var grp = ImRaii.Group(); ImGui.Dummy(new Vector2(w, UI.Sm)); ImGui.Indent(UI.Md);
-            using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.GoldColor, h.Title ?? "Hook");
-            if (!string.IsNullOrEmpty(h.Description)) { UI.Space(UI.Xs); ImGui.SetWindowFontScale(Theme.MediumFont); Wrapped(h.Description, Theme.TextMuted); ImGui.SetWindowFontScale(1f); }
-            ImGui.Unindent(UI.Md); ImGui.Dummy(new Vector2(0, UI.Sm)); grp.Dispose();
+            using (ImRaii.Group())
+            {
+                ImGui.Dummy(new Vector2(w, UI.Sm)); ImGui.Indent(UI.Md);
+                using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.GoldColor, h.Title ?? "Hook");
+                if (!string.IsNullOrEmpty(h.Description)) { UI.Space(UI.Xs); Wrapped(h.Description, Theme.TextMuted); }
+                ImGui.Unindent(UI.Md); ImGui.Dummy(new Vector2(0, UI.Sm));
+            }
             var e = ImGui.GetItemRectMax(); var hov = ImGui.IsItemHovered(); if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
             dl.AddRectFilled(p, new Vector2(p.X + w, e.Y), Theme.Col(Theme.ButtonBg with { W = hov ? 0.35f : 0.25f }), 4);
             dl.AddRectFilled(p, new Vector2(p.X + 3, e.Y), Theme.Col(Theme.GoldColor with { W = hov ? 0.9f : 0.6f }), 4, ImDrawFlags.RoundCornersLeft);
@@ -420,7 +427,7 @@ public static class ProfileTab
     static void NotesTab(string? name, string? world, string? profileId)
     {
         if (name == null || world == null) return;
-        var w = ImGui.GetContentRegionAvail().X; var halfH = (ImGui.GetContentRegionAvail().Y - 120) / 2;
+        var w = ImGui.GetContentRegionAvail().X; var halfH = (ImGui.GetContentRegionAvail().Y - 120 * ImGuiHelpers.GlobalScale) / 2;
         DrawNoteField("Profile Notes", "Tied to this RPHub profile", profileId ?? $"{name}@{world}", ref _profileNote, ref _profileNoteDirty, w, halfH);
         UI.Space(UI.Sm);
         DrawNoteField("Character Notes", "Tied to character name & world", $"{name}@{world}", ref _charNote, ref _charNoteDirty, w, halfH);
@@ -432,14 +439,14 @@ public static class ProfileTab
                 .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
                 .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
             {
-                if (ImGui.Button("Save All", new Vector2(90, 26))) { if (_profileNoteDirty) { Globals.Notes.Set(profileId ?? $"{name}@{world}", _profileNote); _profileNoteDirty = false; } if (_charNoteDirty) { Globals.Notes.Set($"{name}@{world}", _charNote); _charNoteDirty = false; } Sound.PlaySuccess(); }
+                if (ImGui.Button("Save All", new Vector2(90, 26) * ImGuiHelpers.GlobalScale)) { if (_profileNoteDirty) { Globals.Notes.Set(profileId ?? $"{name}@{world}", _profileNote); _profileNoteDirty = false; } if (_charNoteDirty) { Globals.Notes.Set($"{name}@{world}", _charNote); _charNoteDirty = false; } Sound.PlaySuccess(); }
             }
             ImGui.SameLine();
             using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
                 .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f })
                 .Push(ImGuiCol.Text, Theme.LabelColor))
             {
-                if (ImGui.Button("Discard", new Vector2(80, 26))) { _profileNote = Globals.Notes.Get(profileId ?? $"{name}@{world}"); _charNote = Globals.Notes.Get($"{name}@{world}"); _profileNoteDirty = _charNoteDirty = false; Sound.PlayCancel(); }
+                if (ImGui.Button("Discard", new Vector2(80, 26) * ImGuiHelpers.GlobalScale)) { _profileNote = Globals.Notes.Get(profileId ?? $"{name}@{world}"); _charNote = Globals.Notes.Get($"{name}@{world}"); _profileNoteDirty = _charNoteDirty = false; Sound.PlayCancel(); }
             }
         }
     }
@@ -459,31 +466,34 @@ public static class ProfileTab
     }
 
     static void Section(string t) { ImGui.TextColored(Theme.Primary, t.ToUpperInvariant()); ImGui.Separator(); UI.Space(UI.Xs); }
-    static void Wrapped(string t, Vector4? col = null) { ImGui.PushTextWrapPos(ImGui.GetContentRegionAvail().X); ImGui.TextColored(col ?? Theme.ValueColor, t); ImGui.PopTextWrapPos(); }
+    static void Wrapped(string t, Vector4? col = null) { using (ImRaii.TextWrapPos(ImGui.GetContentRegionAvail().X)) ImGui.TextColored(col ?? Theme.ValueColor, t); }
     static void IconText(FontAwesomeIcon i, Vector4 col, string t) { using (ImRaii.PushFont(UiBuilder.IconFont)) ImGui.TextColored(Theme.LabelColorDim, i.ToIconString()); ImGui.SameLine(0, UI.Sm); ImGui.TextColored(col, t); }
 
     static void Empty(string t, string s)
     {
         UI.Space(ImGui.GetContentRegionAvail().Y * 0.3f);
         Icon(ImGui.GetWindowDrawList(), ImGui.GetCursorScreenPos() + new Vector2(ImGui.GetContentRegionAvail().X / 2, 0), FontAwesomeIcon.UserSlash, Theme.LabelColorDim, 2.5f);
-        UI.Space(40); Theme.Centered(t, Theme.LabelColor); Theme.Centered(s, Theme.TextMuted);
+        UI.Space(40 * ImGuiHelpers.GlobalScale); Theme.Centered(t, Theme.LabelColor); Theme.Centered(s, Theme.TextMuted);
     }
 
     static void Icon(ImDrawListPtr dl, Vector2 c, FontAwesomeIcon i, Vector4 col, float scale = 1f)
     {
         using (ImRaii.PushFont(UiBuilder.IconFont))
         {
-            var sz = ImGui.GetFontSize() * scale; var txt = i.ToIconString();
-            ImGui.SetWindowFontScale(scale); var s = ImGui.CalcTextSize(txt); ImGui.SetWindowFontScale(1);
+            var sz = ImGui.GetFontSize() * scale;
+            var txt = i.ToIconString();
+            ImGui.SetWindowFontScale(scale);
+            var s = ImGui.CalcTextSize(txt);
+            ImGui.SetWindowFontScale(1f);
             dl.AddText(ImGui.GetFont(), sz, c - s / 2, Theme.Col(col), txt);
         }
     }
 
     static bool IconBtn(ImDrawListPtr dl, Vector2 p, FontAwesomeIcon i, string tip)
     {
-        ImGui.SetCursorScreenPos(p); var c = ImGui.InvisibleButton($"##{tip}", new Vector2(24)); var h = ImGui.IsItemHovered();
-        if (h) { dl.AddRectFilled(p, p + new Vector2(24), Theme.Col(Theme.ButtonHovered), 4); ImGui.SetMouseCursor(ImGuiMouseCursor.Hand); ImGui.SetTooltip(tip); }
-        Icon(dl, p + new Vector2(12), i, h ? Theme.GoldColor : Theme.LabelColor); return c;
+        ImGui.SetCursorScreenPos(p); var c = ImGui.InvisibleButton($"##{tip}", new Vector2(24 * ImGuiHelpers.GlobalScale)); var h = ImGui.IsItemHovered();
+        if (h) { dl.AddRectFilled(p, p + new Vector2(24 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.ButtonHovered), 4); ImGui.SetMouseCursor(ImGuiMouseCursor.Hand); ImGui.SetTooltip(tip); }
+        Icon(dl, p + new Vector2(12 * ImGuiHelpers.GlobalScale), i, h ? Theme.GoldColor : Theme.LabelColor); return c;
     }
 
     static void Refresh(string? name, string? world)

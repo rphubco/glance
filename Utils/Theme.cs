@@ -1,6 +1,7 @@
 namespace Glance.Utils;
 
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using System;
 using System.Numerics;
@@ -34,7 +35,9 @@ public static class Theme
         Primary = new(0.55f, 0.65f, 1, 1),
         VersionColor = new(0.35f, 0.32f, 0.28f, 1);
 
-    public const float SmallFont = 0.85f, MediumFont = 1f, Padding = 10f, CornerAccentSize = 6f, CornerAccentSizeLarge = 8f;
+    public static float Padding => 10f * ImGuiHelpers.GlobalScale;
+    public static float CornerAccentSize => 6f * ImGuiHelpers.GlobalScale;
+    public static float CornerAccentSizeLarge => 8f * ImGuiHelpers.GlobalScale;
 
     public static IDisposable PushStyle()
     {
@@ -42,7 +45,7 @@ public static class Theme
             .Push(ImGuiStyleVar.WindowPadding, new Vector2(Padding))
             .Push(ImGuiStyleVar.WindowBorderSize, 2f)
             .Push(ImGuiStyleVar.FrameRounding, 2f)
-            .Push(ImGuiStyleVar.ItemSpacing, new Vector2(6, 4))
+            .Push(ImGuiStyleVar.ItemSpacing, new Vector2(6, 4) * ImGuiHelpers.GlobalScale)
             .Push(ImGuiStyleVar.ChildRounding, 2f);
 
         var colors = ImRaii.PushColor(ImGuiCol.WindowBg, FrameBg)
@@ -77,12 +80,13 @@ public static class Theme
         public void Dispose() { colors.Dispose(); vars.Dispose(); }
     }
 
-    public static void DrawFrame(float sz = CornerAccentSize)
+    public static void DrawFrame() => DrawFrame(CornerAccentSize);
+    public static void DrawFrame(float sz)
     {
         var dl = ImGui.GetWindowDrawList();
         var p = ImGui.GetWindowPos();
         var s = ImGui.GetWindowSize();
-        dl.AddRect(p + new Vector2(3), p + s - new Vector2(3), Col(FrameBorderInner), 2f);
+        dl.AddRect(p + new Vector2(3 * ImGuiHelpers.GlobalScale), p + s - new Vector2(3 * ImGuiHelpers.GlobalScale), Col(FrameBorderInner), 2f);
         var c = Col(FrameBorder);
         Corner(dl, p, c, sz, 1, 1);
         Corner(dl, new(p.X + s.X, p.Y), c, sz, -1, 1);

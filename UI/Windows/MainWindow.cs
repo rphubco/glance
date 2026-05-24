@@ -3,6 +3,7 @@ namespace Glance.UI.Windows;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
@@ -89,7 +90,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
     public override void PreDraw()
     {
         _themeScope = Theme.PushStyle();
-        ImGui.SetNextWindowSize(new Vector2(700, 520), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowSize(new Vector2(700, 520) * ImGuiHelpers.GlobalScale, ImGuiCond.FirstUseEver);
     }
 
     public override void PostDraw() { _themeScope?.Dispose(); _themeScope = null; }
@@ -118,12 +119,12 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         using (ImRaii.PushColor(ImGuiCol.ButtonHovered, Theme.ButtonHovered))
         using (ImRaii.PushColor(ImGuiCol.Text, Theme.LabelColor))
         {
-            if (ImGui.Button("< Back to Login", new Vector2(120, 24))) { _charSub = 0; Sound.PlayCancel(); }
+            if (ImGui.Button("< Back to Login", new Vector2(120, 24) * ImGuiHelpers.GlobalScale)) { _charSub = 0; Sound.PlayCancel(); }
         }
 
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
         UI.Divider();
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
 
         ProfileTab.DrawTarget();
     }
@@ -138,25 +139,24 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         _spinAngle += ImGui.GetIO().DeltaTime * 3f;
         var dl = ImGui.GetWindowDrawList();
         var spinPos = ImGui.GetCursorScreenPos() + new Vector2(centerX, 0);
-        DrawSpinner(dl, spinPos, 10, 18, 2.5f);
+        DrawSpinner(dl, spinPos, 10 * ImGuiHelpers.GlobalScale, 18 * ImGuiHelpers.GlobalScale, 2.5f);
 
-        UI.Space(36);
-        ImGui.SetWindowFontScale(1.1f);
-        CenteredText("Verifying account...", Theme.LabelColor);
-        ImGui.SetWindowFontScale(1f);
+        UI.Space(36 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Header.Push())
+            CenteredText("Verifying account...", Theme.LabelColor);
     }
 
     void DrawLayout()
     {
-        using (var sidebar = ImRaii.Child("Sidebar", new Vector2(180, -1), true))
+        using (var sidebar = ImRaii.Child("Sidebar", new Vector2(180 * ImGuiHelpers.GlobalScale, -1), true))
         {
             if (sidebar)
             {
                 Header();
-                UI.Space(8); UI.Divider(); UI.Space(8);
+                UI.Space(8 * ImGuiHelpers.GlobalScale); UI.Divider(); UI.Space(8 * ImGuiHelpers.GlobalScale);
                 Tabs();
                 var y = ImGui.GetContentRegionAvail().Y;
-                if (y > 90) { ImGui.SetCursorPosY(ImGui.GetCursorPosY() + y - 27f); Logout(); }
+                if (y > 90 * ImGuiHelpers.GlobalScale) { ImGui.SetCursorPosY(ImGui.GetCursorPosY() + y - 27f * ImGuiHelpers.GlobalScale); Logout(); }
             }
         }
         ImGui.SameLine();
@@ -205,12 +205,11 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         using (ImRaii.PushFont(UiBuilder.IconFont))
             CenteredText(FontAwesomeIcon.SignOutAlt.ToIconString(), Theme.TextMuted);
 
-        UI.Space(10);
-        ImGui.SetWindowFontScale(1.2f);
-        CenteredText("No Character Detected", Theme.ValueColor);
-        ImGui.SetWindowFontScale(1.0f);
+        UI.Space(10 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Header.Push())
+            CenteredText("No Character Detected", Theme.ValueColor);
 
-        UI.Space(10);
+        UI.Space(10 * ImGuiHelpers.GlobalScale);
         CenteredText("Please log in to a character to manage", Theme.TextMuted);
         CenteredText("your profiles and use Glance features.", Theme.TextMuted);
     }
@@ -225,34 +224,33 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         using (ImRaii.PushFont(UiBuilder.IconFont))
             CenteredText(FontAwesomeIcon.Link.ToIconString(), Theme.GoldColor);
 
-        UI.Space(10);
-        ImGui.SetWindowFontScale(1.2f);
-        CenteredText("New Character Detected", Theme.ValueColor);
-        ImGui.SetWindowFontScale(1.0f);
+        UI.Space(10 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Header.Push())
+            CenteredText("New Character Detected", Theme.ValueColor);
 
-        UI.Space(10);
+        UI.Space(10 * ImGuiHelpers.GlobalScale);
         CenteredText("Link this character to your RPHub account to", Theme.TextMuted);
         CenteredText("enable profile management and Glance features.", Theme.TextMuted);
 
-        UI.Space(6);
+        UI.Space(6 * ImGuiHelpers.GlobalScale);
         CenteredText("Clicking below securely registers this character", Theme.GoldColor with { W = 0.8f });
         CenteredText("to your cloud profile.", Theme.GoldColor with { W = 0.8f });
 
-        UI.Space(20);
+        UI.Space(20 * ImGuiHelpers.GlobalScale);
 
         if (Globals.Auth.IsFetching)
         {
             _spinAngle += ImGui.GetIO().DeltaTime * 3f;
             var dl = ImGui.GetWindowDrawList();
-            var spinPos = ImGui.GetCursorScreenPos() + new Vector2(centerX, 15);
-            DrawSpinner(dl, spinPos, 8, 14, 2f);
-            UI.Space(40);
+            var spinPos = ImGui.GetCursorScreenPos() + new Vector2(centerX, 15 * ImGuiHelpers.GlobalScale);
+            DrawSpinner(dl, spinPos, 8 * ImGuiHelpers.GlobalScale, 14 * ImGuiHelpers.GlobalScale, 2f);
+            UI.Space(40 * ImGuiHelpers.GlobalScale);
             CenteredText("Linking character...", Theme.GoldColor);
         }
         else
         {
-            ImGui.SetCursorPosX(centerX - 100);
-            if (ImGui.Button("Link Current Character", new Vector2(200, 40)))
+            ImGui.SetCursorPosX(centerX - 100 * ImGuiHelpers.GlobalScale);
+            if (ImGui.Button("Link Current Character", new Vector2(200, 40) * ImGuiHelpers.GlobalScale))
             {
                 _ = Globals.Auth.RefreshBeaconTokenAsync();
                 Sound.PlayConfirm();
@@ -260,7 +258,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
             if (Globals.Auth.BeaconFetchFailed)
             {
-                UI.Space(10);
+                UI.Space(10 * ImGuiHelpers.GlobalScale);
                 CenteredText(Globals.Auth.LastBeaconError ?? "Failed to link character.", Theme.Error);
             }
         }
@@ -275,7 +273,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
             if (icon.TryGetWrap(out var wrap, out _))
             {
-                ImGui.Image(wrap.Handle, new Vector2(36, 36));
+                ImGui.Image(wrap.Handle, new Vector2(36, 36) * ImGuiHelpers.GlobalScale);
                 ImGui.SameLine();
             }
         }
@@ -284,16 +282,14 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         ImGui.SetCursorScreenPos(new Vector2(ImGui.GetCursorScreenPos().X, startY));
         using (ImRaii.Group())
         {
-            ImGui.SetWindowFontScale(1.1f);
             using (Globals.Fonts.Header.Push())
             {
                 ImGui.TextColored(Theme.Primary, "Glance beta");
             }
-            ImGui.SetWindowFontScale(Theme.SmallFont);
-            ImGui.TextColored(Theme.TextMuted, "by RPHub.co");
-            ImGui.SetWindowFontScale(1f);
+            using (Globals.Fonts.Small.Push())
+                ImGui.TextColored(Theme.TextMuted, "by RPHub.co");
         }
-        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 30));
+        ImGui.SetCursorScreenPos(new Vector2(startPos.X, startPos.Y + 30 * ImGuiHelpers.GlobalScale));
     }
 
     void Tabs()
@@ -302,7 +298,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
         if (_tab == 0)
         {
-            ImGui.Indent(16);
+            ImGui.Indent(16 * ImGuiHelpers.GlobalScale);
             SubTab("Profiles", FontAwesomeIcon.Users, 0);
 
             var activeId = Globals.Profiles.ActiveProfileId;
@@ -350,7 +346,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
                 _viewedTargetWorld = null;
             }
 
-            ImGui.Unindent(16);
+            ImGui.Unindent(16 * ImGuiHelpers.GlobalScale);
         }
 
         Tab("Nearby", FontAwesomeIcon.Users, 1);
@@ -365,23 +361,22 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var dl = ImGui.GetWindowDrawList();
         var p = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
-        const float h = 28f;
+        var h = 28f * ImGuiHelpers.GlobalScale;
 
         var hov = ImGui.IsMouseHoveringRect(p, p + new Vector2(w, h));
         if (sel || hov) dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col((sel ? Theme.ButtonBg : Theme.ButtonHovered) with { W = 0.4f }), 3f);
 
         if (ImGui.InvisibleButton($"##sub_{name}", new Vector2(w, h))) { _tab = 0; _charSub = idx; Sound.PlayTab(); }
 
-        ImGui.SetCursorScreenPos(p + new Vector2(8, (h - ImGui.GetTextLineHeight()) / 2));
-        ImGui.SetWindowFontScale(Theme.SmallFont);
+        ImGui.SetCursorScreenPos(p + new Vector2(8 * ImGuiHelpers.GlobalScale, (h - ImGui.GetTextLineHeight()) / 2));
         using (ImRaii.PushFont(UiBuilder.IconFont))
             ImGui.TextColored((sel ? Theme.GoldColor : Theme.LabelColor) with { W = 0.7f }, icon.ToIconString());
         ImGui.SameLine();
-        ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, name);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, name);
 
         if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-        UI.Space(2);
+        UI.Space(2 * ImGuiHelpers.GlobalScale);
     }
 
     static string Truncate(string s, int max) => s.Length > max ? s[..(max - 2)] + ".." : s;
@@ -392,11 +387,11 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         var dl = ImGui.GetWindowDrawList();
         var p = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
-        const float h = 38f;
+        var h = 38f * ImGuiHelpers.GlobalScale;
 
         var hov = ImGui.IsMouseHoveringRect(p, p + new Vector2(w, h));
         if (sel || hov) dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col((sel ? Theme.ButtonActive : Theme.ButtonHovered) with { W = 0.5f }), 4f);
-        if (sel) dl.AddRectFilled(p, p + new Vector2(3, h), Theme.Col(Theme.GoldColor), 2f);
+        if (sel) dl.AddRectFilled(p, p + new Vector2(3 * ImGuiHelpers.GlobalScale, h), Theme.Col(Theme.GoldColor), 2f);
 
         if (ImGui.InvisibleButton($"##t_{name}", new Vector2(w, h)))
         {
@@ -409,15 +404,15 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             Sound.PlayTab();
         }
 
-        ImGui.SetCursorScreenPos(p + new Vector2(12, (h - ImGui.GetTextLineHeight()) / 2));
+        ImGui.SetCursorScreenPos(p + new Vector2(12 * ImGuiHelpers.GlobalScale, (h - ImGui.GetTextLineHeight()) / 2));
         using (ImRaii.PushFont(UiBuilder.IconFont))
             ImGui.TextColored(sel ? Theme.GoldColor : Theme.LabelColor, icon.ToIconString());
         ImGui.SameLine();
-        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 6);
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + 6 * ImGuiHelpers.GlobalScale);
         ImGui.TextColored(sel ? Theme.GoldColor : Theme.ValueColor, name);
 
         if (hov) ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
     }
 
     void Logout()
@@ -427,7 +422,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             .Push(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f })
             .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            if (ImGui.Button("Log Out", new Vector2(ImGui.GetContentRegionAvail().X, 24))) Globals.Auth.Logout();
+            if (ImGui.Button("Log Out", new Vector2(ImGui.GetContentRegionAvail().X, 24 * ImGuiHelpers.GlobalScale))) Globals.Auth.Logout();
         }
     }
 
@@ -439,7 +434,7 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
 
         ImGui.SetCursorPosY(avail.Y * 0.12f);
         DrawLogo(centerX);
-        UI.Space(20);
+        UI.Space(20 * ImGuiHelpers.GlobalScale);
 
         if (Globals.Auth.IsWaitingForBrowser)
             DrawAuthProgress(centerX, dl);
@@ -456,57 +451,53 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             var icon = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(65120));
             if (icon.TryGetWrap(out var wrap, out _))
             {
-                ImGui.SetCursorPosX(centerX - 38);
-                ImGui.Image(wrap.Handle, new Vector2(56, 56));
+                ImGui.SetCursorPosX(centerX - 38 * ImGuiHelpers.GlobalScale);
+                ImGui.Image(wrap.Handle, new Vector2(56, 56) * ImGuiHelpers.GlobalScale);
             }
         }
         catch { }
 
-        UI.Space(16);
-        ImGui.SetWindowFontScale(1.4f);
-        using (Globals.Fonts.Header.Push())
-        {
+        UI.Space(16 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Large.Push())
             CenteredText("Glance", Theme.GoldColor);
-        }
-        ImGui.SetWindowFontScale(1f);
 
-        UI.Space(2);
-        ImGui.SetWindowFontScale(0.9f);
-        CenteredText("by RPHub.co", Theme.TextMuted);
-        ImGui.SetWindowFontScale(1f);
+        UI.Space(2 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Small.Push())
+            CenteredText("by RPHub.co", Theme.TextMuted);
     }
 
     void DrawAuthProgress(float centerX, ImDrawListPtr dl)
     {
-        var stepsX = centerX - 110;
+        var stepsX = centerX - 110 * ImGuiHelpers.GlobalScale;
         var authStep = GetAuthStep();
 
         DrawAuthStep(stepsX, "Requesting link...", 1, authStep);
         DrawAuthStep(stepsX, "Waiting for approval...", 2, authStep);
         DrawAuthStep(stepsX, "Syncing profiles...", 3, authStep);
 
-        UI.Space(12);
+        UI.Space(12 * ImGuiHelpers.GlobalScale);
 
         _spinAngle += ImGui.GetIO().DeltaTime * 2.5f;
-        var spinPos = ImGui.GetCursorScreenPos() + new Vector2(centerX, 14);
-        DrawSpinner(dl, spinPos, 6, 12, 2f);
+        var spinPos = ImGui.GetCursorScreenPos() + new Vector2(centerX, 14 * ImGuiHelpers.GlobalScale);
+        DrawSpinner(dl, spinPos, 6 * ImGuiHelpers.GlobalScale, 12 * ImGuiHelpers.GlobalScale, 2f);
 
-        UI.Space(36);
+        UI.Space(36 * ImGuiHelpers.GlobalScale);
 
-        ImGui.SetWindowFontScale(0.85f);
-        CenteredText("A browser window should have opened.", Theme.TextMuted);
-        CenteredText("Complete sign-in there to continue.", Theme.TextMuted);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+        {
+            CenteredText("A browser window should have opened.", Theme.TextMuted);
+            CenteredText("Complete sign-in there to continue.", Theme.TextMuted);
+        }
 
-        UI.Space(16);
+        UI.Space(16 * ImGuiHelpers.GlobalScale);
 
-        ImGui.SetCursorPosX(centerX - 70);
+        ImGui.SetCursorPosX(centerX - 70 * ImGuiHelpers.GlobalScale);
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg with { W = 0.3f })
             .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.35f })
             .Push(ImGuiCol.ButtonActive, Theme.Error with { W = 0.5f })
             .Push(ImGuiCol.Text, Theme.TextMuted))
         {
-            if (ImGui.Button("Cancel", new Vector2(140, 30))) Globals.Auth.CancelAuth();
+            if (ImGui.Button("Cancel", new Vector2(140, 30) * ImGuiHelpers.GlobalScale)) Globals.Auth.CancelAuth();
         }
     }
 
@@ -529,8 +520,8 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
     {
         var isLoggedIn = Globals.Objects.LocalPlayer != null;
 
-        UI.Space(8);
-        ImGui.SetCursorPosX(centerX - 100);
+        UI.Space(8 * ImGuiHelpers.GlobalScale);
+        ImGui.SetCursorPosX(centerX - 100 * ImGuiHelpers.GlobalScale);
 
         using (ImRaii.PushColor(ImGuiCol.Button, isLoggedIn ? Theme.PrimaryButtonBg : Theme.ButtonBg with { W = 0.2f })
             .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover, isLoggedIn)
@@ -538,28 +529,28 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
             .Push(ImGuiCol.Text, isLoggedIn ? Theme.PrimaryButtonText : Theme.TextMuted with { W = 0.5f }))
         using (ImRaii.PushStyle(ImGuiStyleVar.FrameRounding, 4f))
         {
-            if (ImGui.Button("Connect RPHub Account", new Vector2(200, 36)) && isLoggedIn) { Globals.Auth.StartAuthProcess(); Sound.PlayConfirm(); }
+            if (ImGui.Button("Connect RPHub Account", new Vector2(200, 36) * ImGuiHelpers.GlobalScale) && isLoggedIn) { Globals.Auth.StartAuthProcess(); Sound.PlayConfirm(); }
         }
 
         if (!isLoggedIn)
         {
-            UI.Space(4);
+            UI.Space(4 * ImGuiHelpers.GlobalScale);
             CenteredText("Please login on a character to sign in", Theme.Error with { W = 0.8f });
         }
     }
 
     void DrawFooter(Vector2 avail, ImDrawListPtr dl, float centerX)
     {
-        const float footerH = 50f;
+        var footerH = 50f * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorPosY(avail.Y - footerH);
 
         var divStart = ImGui.GetCursorScreenPos();
-        dl.AddLine(divStart + new Vector2(40, 0), divStart + new Vector2(avail.X - 40, 0), Theme.Col(Theme.FrameBorder with { W = 0.3f }));
+        dl.AddLine(divStart + new Vector2(40 * ImGuiHelpers.GlobalScale, 0), divStart + new Vector2(avail.X - 40 * ImGuiHelpers.GlobalScale, 0), Theme.Col(Theme.FrameBorder with { W = 0.3f }));
 
-        UI.Space(14);
+        UI.Space(14 * ImGuiHelpers.GlobalScale);
 
-        const float iconGap = 24f;
-        var iconsW = 24f * 3 + iconGap * 2;
+        var iconGap = 24f * ImGuiHelpers.GlobalScale;
+        var iconsW = 24f * ImGuiHelpers.GlobalScale * 3 + iconGap * 2;
         var iconsX = centerX - iconsW / 2;
 
         ImGui.SetCursorPosX(iconsX);
@@ -600,17 +591,16 @@ public sealed class MainWindow() : Window("Glance##Dashboard", ImGuiWindowFlags.
         }
 
         ImGui.SameLine();
-        ImGui.SetWindowFontScale(0.9f);
-        ImGui.TextColored(active ? Theme.ValueColor : (done ? Theme.Success : Theme.TextMuted with { W = 0.5f }), text);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(active ? Theme.ValueColor : (done ? Theme.Success : Theme.TextMuted with { W = 0.5f }), text);
 
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
     }
 
     void SocialIcon(FontAwesomeIcon icon, string url, string tooltip)
     {
         var p = ImGui.GetCursorScreenPos();
-        var size = new Vector2(24, 24);
+        var size = new Vector2(24, 24) * ImGuiHelpers.GlobalScale;
         var hov = ImGui.IsMouseHoveringRect(p, p + size);
 
         using (ImRaii.PushFont(UiBuilder.IconFont))

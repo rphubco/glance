@@ -91,7 +91,7 @@ public static class SettingsTab
                 "When enabled, others cannot view your profile even if they click you.\n" +
                 "You can still see other players' profiles.\n\n" +
                 "Note: Users who have already cached your profile may still see it\n" +
-                "locally until their cache expires (usually 24h)."
+                "locally until the next time they view it (usually within ~2 minutes)."
             );
         }
 
@@ -331,11 +331,10 @@ public static class SettingsTab
             int? toUnmute = null;
             foreach (var (id, name) in muted)
             {
-                ImGui.PushID(id);
+                using var _id = ImRaii.PushId(id);
                 if (ImGui.SmallButton("Unmute")) toUnmute = id;
                 ImGui.SameLine();
                 ImGui.TextColored(Theme.LabelColor, name);
-                ImGui.PopID();
             }
 
             if (toUnmute is int uid)

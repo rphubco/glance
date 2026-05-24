@@ -4,6 +4,7 @@ using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.ImGuiFileDialog;
 using Dalamud.Interface.Textures.TextureWraps;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
@@ -125,21 +126,21 @@ public static class ProfileEditor
         var dl = ImGui.GetWindowDrawList();
         var p = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
-        const float h = 50;
+        var h = 50f * ImGuiHelpers.GlobalScale;
 
         dl.AddRectFilled(p, p + new Vector2(w, h), Theme.Col(Theme.FrameBorderInner with { W = 0.15f }), 6);
 
-        ImGui.SetCursorScreenPos(p + new Vector2(12, 12));
+        ImGui.SetCursorScreenPos(p + new Vector2(12, 12) * ImGuiHelpers.GlobalScale);
         using (Globals.Fonts.Header.Push()) ImGui.TextColored(Theme.GoldColor, _createMode ? "Create Profile" : "Editing Profile");
 
-        var btnX = p.X + w - 12;
+        var btnX = p.X + w - 12 * ImGuiHelpers.GlobalScale;
 
-        ImGui.SetCursorScreenPos(new Vector2(btnX - 70, p.Y + 10));
+        ImGui.SetCursorScreenPos(new Vector2(btnX - 70 * ImGuiHelpers.GlobalScale, p.Y + 10 * ImGuiHelpers.GlobalScale));
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
             .Push(ImGuiCol.ButtonHovered, Theme.Error with { W = 0.4f })
             .Push(ImGuiCol.Text, Theme.LabelColor))
         {
-            if (ImGui.Button("Cancel", new Vector2(70, 30)))
+            if (ImGui.Button("Cancel", new Vector2(70, 30) * ImGuiHelpers.GlobalScale))
             {
                 edit.Discard();
                 Cleanup();
@@ -148,14 +149,14 @@ public static class ProfileEditor
             }
         }
 
-        ImGui.SetCursorScreenPos(new Vector2(btnX - 150, p.Y + 10));
+        ImGui.SetCursorScreenPos(new Vector2(btnX - 150 * ImGuiHelpers.GlobalScale, p.Y + 10 * ImGuiHelpers.GlobalScale));
         var dirty = edit.IsDirty || _createMode;
         using (ImRaii.Disabled(!dirty))
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
             .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
             .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            if (ImGui.Button(edit.IsSaving ? "Saving..." : (_createMode ? "Publish" : "Save"), new Vector2(70, 30)) && !edit.IsSaving)
+            if (ImGui.Button(edit.IsSaving ? "Saving..." : (_createMode ? "Publish" : "Save"), new Vector2(70, 30) * ImGuiHelpers.GlobalScale) && !edit.IsSaving)
             {
                 _saveErr = "";
                 _ = Task.Run(async () =>
@@ -181,7 +182,7 @@ public static class ProfileEditor
 
         if (!string.IsNullOrEmpty(_saveErr))
         {
-            ImGui.SetCursorScreenPos(new Vector2(p.X + 12, p.Y + 35));
+            ImGui.SetCursorScreenPos(new Vector2(p.X + 12 * ImGuiHelpers.GlobalScale, p.Y + 35 * ImGuiHelpers.GlobalScale));
             ImGui.TextColored(Theme.Error, _saveErr);
         }
 
@@ -201,7 +202,7 @@ public static class ProfileEditor
             using (ImRaii.PushColor(ImGuiCol.Button, sel ? Theme.ButtonActive : Theme.ButtonBg)
                 .Push(ImGuiCol.Text, sel ? Theme.GoldColor : Theme.LabelColor))
             {
-                if (ImGui.Button(tabs[i], new Vector2(tw, 28)))
+                if (ImGui.Button(tabs[i], new Vector2(tw, 28 * ImGuiHelpers.GlobalScale)))
                 {
                     if (_tab != i)
                     {
@@ -219,153 +220,155 @@ public static class ProfileEditor
         if (draft == null) return;
 
         var w = ImGui.GetContentRegionAvail().X;
+        var imgSz = 120f * ImGuiHelpers.GlobalScale;
 
-        ImGui.BeginGroup();
-        ImGui.TextColored(Theme.LabelColor, "Profile Image");
-        UI.Space(UI.Xs);
-
-        var imgP = ImGui.GetCursorScreenPos();
-        const float imgSz = 120;
-        var dl = ImGui.GetWindowDrawList();
-
-        if (edit.HasPendingImage && edit.PendingImageData != null && _loadedImgBytes != edit.PendingImageData)
+        using (ImRaii.Group())
         {
-            _pendingTex?.Dispose();
-            try { _pendingTex = Globals.TextureProvider.CreateFromImageAsync(edit.PendingImageData).Result; _loadedImgBytes = edit.PendingImageData; }
-            catch { _pendingTex = null; }
-        }
+            ImGui.TextColored(Theme.LabelColor, "Profile Image");
+            UI.Space(UI.Xs);
 
-        if (edit.HasPendingImage && _pendingTex != null)
-        {
-            var (tw, th) = ((float)_pendingTex.Width, (float)_pendingTex.Height);
-            var r = 1f; var tr = tw / th;
-            var (u0, u1) = tr > r
-                ? (new Vector2((tw - th * r) / 2 / tw, 0), new Vector2(1 - (tw - th * r) / 2 / tw, 1))
-                : (new Vector2(0, (th - tw / r) / 2 / th), new Vector2(1, 1 - (th - tw / r) / 2 / th));
-            dl.AddImageRounded(_pendingTex.Handle, imgP, imgP + new Vector2(imgSz), u0, u1, 0xFFFFFFFF, 6);
-            dl.AddRect(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.Success with { W = 0.8f }), 6);
-        }
-        else
-        {
-            var tex = Globals.Images.Get(draft.PageImage);
-            if (tex != null)
+            var imgP = ImGui.GetCursorScreenPos();
+            var dl = ImGui.GetWindowDrawList();
+
+            if (edit.HasPendingImage && edit.PendingImageData != null && _loadedImgBytes != edit.PendingImageData)
             {
-                var (tw, th) = ((float)tex.Width, (float)tex.Height);
+                _pendingTex?.Dispose();
+                try { _pendingTex = Globals.TextureProvider.CreateFromImageAsync(edit.PendingImageData).Result; _loadedImgBytes = edit.PendingImageData; }
+                catch { _pendingTex = null; }
+            }
+
+            if (edit.HasPendingImage && _pendingTex != null)
+            {
+                var (tw, th) = ((float)_pendingTex.Width, (float)_pendingTex.Height);
                 var r = 1f; var tr = tw / th;
                 var (u0, u1) = tr > r
                     ? (new Vector2((tw - th * r) / 2 / tw, 0), new Vector2(1 - (tw - th * r) / 2 / tw, 1))
                     : (new Vector2(0, (th - tw / r) / 2 / th), new Vector2(1, 1 - (th - tw / r) / 2 / th));
-                dl.AddImageRounded(tex.Handle, imgP, imgP + new Vector2(imgSz), u0, u1, 0xFFFFFFFF, 6);
+                dl.AddImageRounded(_pendingTex.Handle, imgP, imgP + new Vector2(imgSz), u0, u1, 0xFFFFFFFF, 6);
+                dl.AddRect(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.Success with { W = 0.8f }), 6);
             }
-            else dl.AddRectFilled(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.ButtonBg), 6);
-            dl.AddRect(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.FrameBorderInner with { W = 0.6f }), 6);
-        }
-
-        ImGui.SetCursorScreenPos(imgP + new Vector2(0, imgSz + UI.Sm));
-
-        using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
-            .Push(ImGuiCol.Text, Theme.LabelColor))
-        {
-            if (ImGui.Button("Change Image", new Vector2(imgSz, 24)))
+            else
             {
-                _fileDialogManager.OpenFileDialog(
-                    "Select Portrait",
-                    ".png,.jpg,.jpeg,.webp,.gif",
-                    (bool ok, string path) =>
-                    {
-                        if (!ok || string.IsNullOrEmpty(path)) return;
-                        try
+                var tex = Globals.Images.Get(draft.PageImage);
+                if (tex != null)
+                {
+                    var (tw, th) = ((float)tex.Width, (float)tex.Height);
+                    var r = 1f; var tr = tw / th;
+                    var (u0, u1) = tr > r
+                        ? (new Vector2((tw - th * r) / 2 / tw, 0), new Vector2(1 - (tw - th * r) / 2 / tw, 1))
+                        : (new Vector2(0, (th - tw / r) / 2 / th), new Vector2(1, 1 - (th - tw / r) / 2 / th));
+                    dl.AddImageRounded(tex.Handle, imgP, imgP + new Vector2(imgSz), u0, u1, 0xFFFFFFFF, 6);
+                }
+                else dl.AddRectFilled(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.ButtonBg), 6);
+                dl.AddRect(imgP, imgP + new Vector2(imgSz), Theme.Col(Theme.FrameBorderInner with { W = 0.6f }), 6);
+            }
+
+            ImGui.SetCursorScreenPos(imgP + new Vector2(0, imgSz + UI.Sm));
+
+            using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                .Push(ImGuiCol.Text, Theme.LabelColor))
+            {
+                if (ImGui.Button("Change Image", new Vector2(imgSz, 24 * ImGuiHelpers.GlobalScale)))
+                {
+                    _fileDialogManager.OpenFileDialog(
+                        "Select Portrait",
+                        ".png,.jpg,.jpeg,.webp,.gif",
+                        (bool ok, string path) =>
                         {
-                            if (File.Exists(path))
+                            if (!ok || string.IsNullOrEmpty(path)) return;
+                            try
                             {
-                                var (success, err) = edit.StageImage(File.ReadAllBytes(path), Path.GetFileName(path));
-                                _imageErr = success ? "" : (err ?? "Failed");
+                                if (File.Exists(path))
+                                {
+                                    var (success, err) = edit.StageImage(File.ReadAllBytes(path), Path.GetFileName(path));
+                                    _imageErr = success ? "" : (err ?? "Failed");
+                                }
                             }
+                            catch (Exception ex) { _imageErr = ex.Message; }
                         }
-                        catch (Exception ex) { _imageErr = ex.Message; }
+                    );
+                }
+            }
+
+            if (edit.HasPendingImage)
+            {
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                    .Push(ImGuiCol.Text, Theme.Error))
+                {
+                    if (ImGui.Button("Clear##img", new Vector2(imgSz, 20 * ImGuiHelpers.GlobalScale))) { edit.ClearPendingImage(); _pendingTex?.Dispose(); _pendingTex = null; _loadedImgBytes = null; }
+                }
+            }
+
+            if (!string.IsNullOrEmpty(_imageErr))
+            {
+                using (ImRaii.TextWrapPos(imgSz))
+                    ImGui.TextColored(Theme.Error, _imageErr);
+            }
+        }
+        ImGui.SameLine(0, UI.Lg);
+
+        using (ImRaii.Group())
+        {
+            var fieldW = w - imgSz - UI.Lg - 12 * ImGuiHelpers.GlobalScale;
+
+            Field("Name", draft, d => d.Name, (d, v) => d.Name = v, 30, fieldW);
+            Field("Description", draft, d => d.Description, (d, v) => d.Description = v, 30, fieldW);
+
+            var startY = ImGui.GetCursorPosY();
+            using (ImRaii.Group())
+            {
+                ImGui.TextColored(Theme.LabelColor, "Race");
+                ImGui.SetNextItemWidth(fieldW * 0.5f);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+                {
+                    if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races))
+                    {
+                        draft.Race = RaceData.Races[_raceIdx];
+                        _clanIdx = 0;
+                        if (RaceData.Clans.TryGetValue(draft.Race, out var c) && c.Length > 0)
+                            draft.Clan = c[0];
                     }
-                );
-            }
-        }
+                }
 
-        if (edit.HasPendingImage)
-        {
-            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
-                .Push(ImGuiCol.Text, Theme.Error))
-            {
-                if (ImGui.Button("Clear##img", new Vector2(imgSz, 20))) { edit.ClearPendingImage(); _pendingTex?.Dispose(); _pendingTex = null; _loadedImgBytes = null; }
-            }
-        }
-
-        if (!string.IsNullOrEmpty(_imageErr))
-        {
-            ImGui.PushTextWrapPos(imgSz);
-            ImGui.TextColored(Theme.Error, _imageErr);
-            ImGui.PopTextWrapPos();
-        }
-
-        ImGui.EndGroup();
-        ImGui.SameLine(0, UI.Lg);
-
-        ImGui.BeginGroup();
-        var fieldW = w - imgSz - UI.Lg - 12;
-
-        Field("Name", draft, d => d.Name, (d, v) => d.Name = v, 30, fieldW);
-        Field("Description", draft, d => d.Description, (d, v) => d.Description = v, 30, fieldW);
-
-        var startY = ImGui.GetCursorPosY();
-        ImGui.BeginGroup();
-        ImGui.TextColored(Theme.LabelColor, "Race");
-        ImGui.SetNextItemWidth(fieldW * 0.5f);
-        using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
-        {
-            if (ImGui.Combo("##race", ref _raceIdx, RaceData.Races))
-            {
-                draft.Race = RaceData.Races[_raceIdx];
-                _clanIdx = 0;
-                if (RaceData.Clans.TryGetValue(draft.Race, out var c) && c.Length > 0)
-                    draft.Clan = c[0];
-            }
-        }
-
-        if (!RaceData.IsStandardRace(draft.Race))
-        {
-            UI.Space(UI.Xs);
-            ImGui.SetNextItemWidth(fieldW * 0.5f);
-            var customRace = (draft.Race == RaceData.CustomRace) ? "" : draft.Race;
-            if (ImGui.InputTextWithHint("##customRace", "Enter Custom Race...", ref customRace, 32))
-                draft.Race = customRace;
-        }
-        ImGui.EndGroup();
-
-        ImGui.SameLine(0, UI.Lg);
-        ImGui.SetCursorPosY(startY);
-
-        ImGui.BeginGroup();
-        ImGui.TextColored(Theme.LabelColor, "Clan");
-        ImGui.SetNextItemWidth(fieldW * 0.35f);
-
-        if (_raceIdx >= 0 && _raceIdx < RaceData.Races.Length && RaceData.Clans.TryGetValue(RaceData.Races[_raceIdx], out var clans))
-        {
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
-            {
-                if (ImGui.Combo("##clan", ref _clanIdx, clans))
-                    draft.Clan = clans[_clanIdx];
+                if (!RaceData.IsStandardRace(draft.Race))
+                {
+                    UI.Space(UI.Xs);
+                    ImGui.SetNextItemWidth(fieldW * 0.5f);
+                    var customRace = (draft.Race == RaceData.CustomRace) ? "" : draft.Race;
+                    if (ImGui.InputTextWithHint("##customRace", "Enter Custom Race...", ref customRace, 32))
+                        draft.Race = customRace;
+                }
             }
 
-            if (draft.Clan == RaceData.CustomRace || (!clans.Contains(draft.Clan) && !string.IsNullOrEmpty(draft.Clan)))
+            ImGui.SameLine(0, UI.Lg);
+            ImGui.SetCursorPosY(startY);
+
+            using (ImRaii.Group())
             {
-                UI.Space(UI.Xs);
+                ImGui.TextColored(Theme.LabelColor, "Clan");
                 ImGui.SetNextItemWidth(fieldW * 0.35f);
-                var customClan = (draft.Clan == RaceData.CustomRace) ? "" : draft.Clan;
-                if (ImGui.InputTextWithHint("##customClan", "Enter Custom Clan...", ref customClan, 32))
-                    draft.Clan = customClan;
-            }
-        }
-        ImGui.EndGroup();
 
-        Field("Free Company", draft, d => d.FreeCompany, (d, v) => d.FreeCompany = v, 30, fieldW);
-        ImGui.EndGroup();
+                if (_raceIdx >= 0 && _raceIdx < RaceData.Races.Length && RaceData.Clans.TryGetValue(RaceData.Races[_raceIdx], out var clans))
+                {
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg with { W = 0.5f }))
+                    {
+                        if (ImGui.Combo("##clan", ref _clanIdx, clans))
+                            draft.Clan = clans[_clanIdx];
+                    }
+
+                    if (draft.Clan == RaceData.CustomRace || (!clans.Contains(draft.Clan) && !string.IsNullOrEmpty(draft.Clan)))
+                    {
+                        UI.Space(UI.Xs);
+                        ImGui.SetNextItemWidth(fieldW * 0.35f);
+                        var customClan = (draft.Clan == RaceData.CustomRace) ? "" : draft.Clan;
+                        if (ImGui.InputTextWithHint("##customClan", "Enter Custom Clan...", ref customClan, 32))
+                            draft.Clan = customClan;
+                    }
+                }
+            }
+
+            Field("Free Company", draft, d => d.FreeCompany, (d, v) => d.FreeCompany = v, 30, fieldW);
+        }
 
         UI.Space();
         ImGui.Separator();
@@ -419,8 +422,8 @@ public static class ProfileEditor
         while (d.Glances.Count < 5) d.Glances.Add(new GlanceData());
 
         var dl = ImGui.GetWindowDrawList();
-        const float boxSize = 48f;
-        const float spacing = 12f;
+        var boxSize = 48f * ImGuiHelpers.GlobalScale;
+        var spacing = 12f * ImGuiHelpers.GlobalScale;
         var totalW = 5 * boxSize + 4 * spacing;
         var startX = (availWidth - totalW) / 2;
 
@@ -444,8 +447,8 @@ public static class ProfileEditor
                     var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
                     if (tex.TryGetWrap(out var wrap, out _))
                     {
-                        var iconSz = new Vector2(boxSize - 8);
-                        dl.AddImage(wrap.Handle, pos + new Vector2(4), pos + new Vector2(4) + iconSz);
+                        var iconSz = new Vector2(boxSize - 8 * ImGuiHelpers.GlobalScale);
+                        dl.AddImage(wrap.Handle, pos + new Vector2(4 * ImGuiHelpers.GlobalScale), pos + new Vector2(4 * ImGuiHelpers.GlobalScale) + iconSz);
                     }
                 }
                 catch { }
@@ -460,14 +463,15 @@ public static class ProfileEditor
                 }
             }
 
-            var overlayPos = new Vector2(max.X - 16, max.Y - 16);
-            dl.AddRectFilled(overlayPos, overlayPos + new Vector2(14), Theme.Col(Theme.Primary), 3);
+            var overlayPos = new Vector2(max.X - 16 * ImGuiHelpers.GlobalScale, max.Y - 16 * ImGuiHelpers.GlobalScale);
+            var overlaySz = new Vector2(14 * ImGuiHelpers.GlobalScale);
+            dl.AddRectFilled(overlayPos, overlayPos + overlaySz, Theme.Col(Theme.Primary), 3);
             using (ImRaii.PushFont(UiBuilder.IconFont))
             {
                 ImGui.SetWindowFontScale(0.6f);
                 var editTxt = FontAwesomeIcon.Pen.ToIconString();
                 var editSz = ImGui.CalcTextSize(editTxt);
-                dl.AddText(overlayPos + (new Vector2(14) - editSz) / 2, 0xFFFFFFFF, editTxt);
+                dl.AddText(overlayPos + (overlaySz - editSz) / 2, 0xFFFFFFFF, editTxt);
                 ImGui.SetWindowFontScale(1f);
             }
 
@@ -486,14 +490,13 @@ public static class ProfileEditor
                 if (hasData)
                 {
                     using var tip = ImRaii.Tooltip();
-                    ImGui.PushTextWrapPos(250);
+                    using var _wrap = ImRaii.TextWrapPos(250 * ImGuiHelpers.GlobalScale);
                     ImGui.TextColored(Theme.GoldColor, glance.Label);
                     if (!string.IsNullOrEmpty(glance.Value))
                     {
                         ImGui.Spacing();
                         ImGui.TextColored(Theme.ValueColor, glance.Value);
                     }
-                    ImGui.PopTextWrapPos();
                 }
             }
         }
@@ -503,7 +506,7 @@ public static class ProfileEditor
 
     static void DrawGlancePopup(ProfileEditPayload d)
     {
-        ImGui.SetNextWindowSize(new Vector2(400, 500), ImGuiCond.Always);
+        ImGui.SetNextWindowSize(new Vector2(400, 500) * ImGuiHelpers.GlobalScale, ImGuiCond.Always);
 
         using var popup = ImRaii.Popup("GlanceEditPopup");
 
@@ -533,7 +536,7 @@ public static class ProfileEditor
         UI.Space(UI.Sm);
 
         var previewPos = ImGui.GetCursorScreenPos();
-        const float previewSize = 48f;
+        var previewSize = 48f * ImGuiHelpers.GlobalScale;
         dl.AddRectFilled(previewPos, previewPos + new Vector2(previewSize), Theme.Col(Theme.ButtonBg), 6);
         dl.AddRect(previewPos, previewPos + new Vector2(previewSize), Theme.Col(Theme.FrameBorder), 6);
 
@@ -543,7 +546,7 @@ public static class ProfileEditor
             {
                 var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(glance.IconId));
                 if (tex.TryGetWrap(out var wrap, out _))
-                    dl.AddImage(wrap.Handle, previewPos + new Vector2(4), previewPos + new Vector2(previewSize - 4));
+                    dl.AddImage(wrap.Handle, previewPos + new Vector2(4 * ImGuiHelpers.GlobalScale), previewPos + new Vector2(previewSize - 4 * ImGuiHelpers.GlobalScale));
             }
             catch { }
         }
@@ -552,7 +555,7 @@ public static class ProfileEditor
         using (ImRaii.Group())
         {
             ImGui.Text("Title");
-            ImGui.SetNextItemWidth(contentWidth - previewSize - UI.Md - 8);
+            ImGui.SetNextItemWidth(contentWidth - previewSize - UI.Md - 8 * ImGuiHelpers.GlobalScale);
             var label = glance.Label ?? "";
             if (ImGui.InputText("##glancelabel", ref label, 32)) glance.Label = label;
         }
@@ -562,14 +565,14 @@ public static class ProfileEditor
         ImGui.Text("Description");
         ImGui.SetNextItemWidth(ImGui.GetContentRegionAvail().X);
         var value = glance.Value ?? "";
-        if (ImGui.InputTextMultiline("##glancevalue", ref value, 256, new Vector2(contentWidth, 50)))
+        if (ImGui.InputTextMultiline("##glancevalue", ref value, 256, new Vector2(contentWidth, 50 * ImGuiHelpers.GlobalScale)))
             glance.Value = value;
 
         UI.Space(UI.Sm);
         ImGui.Separator();
         UI.Space(UI.Sm);
 
-        DrawIconTabs(glance, 36f, contentWidth);
+        DrawIconTabs(glance, 36f * ImGuiHelpers.GlobalScale, contentWidth);
 
         UI.Space(UI.Sm);
 
@@ -577,7 +580,7 @@ public static class ProfileEditor
         {
             using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.6f }))
             {
-                if (ImGui.Button("Clear", new Vector2(80, 26)))
+                if (ImGui.Button("Clear", new Vector2(80, 26) * ImGuiHelpers.GlobalScale))
                 {
                     glance.IconId = 0;
                     glance.Label = null;
@@ -587,8 +590,8 @@ public static class ProfileEditor
             ImGui.SameLine();
         }
 
-        ImGui.SetCursorPosX(contentWidth - 60 + ImGui.GetStyle().WindowPadding.X);
-        if (ImGui.Button("Done", new Vector2(60, 26))) ImGui.CloseCurrentPopup();
+        ImGui.SetCursorPosX(contentWidth - 60 * ImGuiHelpers.GlobalScale + ImGui.GetStyle().WindowPadding.X);
+        if (ImGui.Button("Done", new Vector2(60, 26) * ImGuiHelpers.GlobalScale)) ImGui.CloseCurrentPopup();
     }
 
     static bool IconExists(uint iconId)
@@ -773,7 +776,7 @@ public static class ProfileEditor
         {
             var tex = Globals.TextureProvider.GetFromGameIcon(new Dalamud.Interface.Textures.GameIconLookup(iconId));
             if (tex.TryGetWrap(out var wrap, out _) && wrap != null)
-                dl.AddImage(wrap.Handle, pos + new Vector2(2), pos + new Vector2(size - 2));
+                dl.AddImage(wrap.Handle, pos + new Vector2(2 * ImGuiHelpers.GlobalScale), pos + new Vector2(size - 2 * ImGuiHelpers.GlobalScale));
         }
         catch
         {
@@ -794,7 +797,7 @@ public static class ProfileEditor
 
         var w = ImGui.GetContentRegionAvail().X;
 
-        ImGui.TextColored(Theme.TextMuted, "Add custom fields to show info about your character");
+        ImGui.TextColored(Theme.TextMuted, "Add custom fields. A field named 'Pronouns' will appear on tooltips and profile headers.");
         UI.Space();
 
         for (var i = 0; i < draft.About.Count; i++)
@@ -803,37 +806,37 @@ public static class ProfileEditor
             var dl = ImGui.GetWindowDrawList();
             var p = ImGui.GetCursorScreenPos();
 
-            dl.AddRectFilled(p, p + new Vector2(w, 60), Theme.Col(Theme.ButtonBg with { W = 0.3f }), 4);
+            dl.AddRectFilled(p, p + new Vector2(w, 60 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.ButtonBg with { W = 0.3f }), 4);
 
-            ImGui.BeginGroup();
-            ImGui.SetCursorScreenPos(p + new Vector2(8, 8));
-
-            ImGui.SetNextItemWidth(120);
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            {
-                var lbl = a.Label ?? "";
-                if (ImGui.InputText($"##lbl{i}", ref lbl, 50)) a.Label = lbl;
-            }
-
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(w - 200);
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            {
-                var inp = a.Input ?? "";
-                if (ImGui.InputText($"##inp{i}", ref inp, 100)) a.Input = inp;
-            }
-
-            ImGui.SameLine();
             bool removed = false;
-            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
-                .Push(ImGuiCol.Text, Theme.Error))
+            using (ImRaii.Group())
             {
-                if (ImGui.Button($"X##{i}", new Vector2(24, 24))) { edit.RemoveAbout(i); removed = true; }
-            }
-            if (removed) { ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 64)); continue; }
+                ImGui.SetCursorScreenPos(p + new Vector2(8, 8) * ImGuiHelpers.GlobalScale);
 
-            ImGui.EndGroup();
-            ImGui.SetCursorScreenPos(p + new Vector2(0, 64));
+                ImGui.SetNextItemWidth(120 * ImGuiHelpers.GlobalScale);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+                {
+                    var lbl = a.Label ?? "";
+                    if (ImGui.InputText($"##lbl{i}", ref lbl, 50)) a.Label = lbl;
+                }
+
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(w - 200 * ImGuiHelpers.GlobalScale);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+                {
+                    var inp = a.Input ?? "";
+                    if (ImGui.InputText($"##inp{i}", ref inp, 100)) a.Input = inp;
+                }
+
+                ImGui.SameLine();
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                    .Push(ImGuiCol.Text, Theme.Error))
+                {
+                    if (ImGui.Button($"X##{i}", new Vector2(24, 24) * ImGuiHelpers.GlobalScale)) { edit.RemoveAbout(i); removed = true; }
+                }
+            }
+            ImGui.SetCursorScreenPos(p + new Vector2(0, 64 * ImGuiHelpers.GlobalScale));
+            if (removed) continue;
         }
 
         UI.Space();
@@ -842,7 +845,20 @@ public static class ProfileEditor
             using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
                 .Push(ImGuiCol.Text, Theme.Success))
             {
-                if (ImGui.Button("+ Add Field", new Vector2(100, 26))) edit.AddAbout();
+                if (ImGui.Button("+ Add Field", new Vector2(100, 26) * ImGuiHelpers.GlobalScale)) edit.AddAbout();
+            }
+            if (!draft.About.Any(f => f.Label?.Contains("pronouns", StringComparison.OrdinalIgnoreCase) == true))
+            {
+                ImGui.SameLine();
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
+                    .Push(ImGuiCol.Text, Theme.LabelColor))
+                {
+                    if (ImGui.Button("+ Pronouns", new Vector2(110, 26) * ImGuiHelpers.GlobalScale))
+                    {
+                        edit.AddAbout();
+                        draft.About[^1].Label = "Pronouns";
+                    }
+                }
             }
         }
     }
@@ -863,41 +879,44 @@ public static class ProfileEditor
             var dl = ImGui.GetWindowDrawList();
             var p = ImGui.GetCursorScreenPos();
 
-            dl.AddRectFilled(p, p + new Vector2(w, 100), Theme.Col(Theme.ButtonBg with { W = 0.3f }), 4);
-            dl.AddRectFilled(p, p + new Vector2(3, 100), Theme.Col(Theme.GoldColor with { W = 0.6f }), 4, ImDrawFlags.RoundCornersLeft);
+            dl.AddRectFilled(p, p + new Vector2(w, 100 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.ButtonBg with { W = 0.3f }), 4);
+            dl.AddRectFilled(p, p + new Vector2(3, 100) * ImGuiHelpers.GlobalScale, Theme.Col(Theme.GoldColor with { W = 0.6f }), 4, ImDrawFlags.RoundCornersLeft);
 
-            ImGui.BeginGroup();
-            ImGui.SetCursorScreenPos(p + new Vector2(12, 8));
-
-            ImGui.TextColored(Theme.LabelColorDim, "Title");
-            ImGui.SameLine();
-            ImGui.SetNextItemWidth(w - 100);
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            {
-                var title = h.Title ?? "";
-                if (ImGui.InputText($"##htitle{i}", ref title, 50)) h.Title = title;
-            }
-
-            ImGui.SameLine();
             bool hremoved = false;
-            using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
-                .Push(ImGuiCol.Text, Theme.Error))
+            using (ImRaii.Group())
             {
-                if (ImGui.Button($"X##h{i}", new Vector2(24, 24))) { edit.RemoveHook(i); hremoved = true; }
-            }
-            if (hremoved) { ImGui.EndGroup(); ImGui.SetCursorScreenPos(p + new Vector2(0, 108)); continue; }
+                ImGui.SetCursorScreenPos(p + new Vector2(12, 8) * ImGuiHelpers.GlobalScale);
 
-            ImGui.SetCursorScreenPos(p + new Vector2(12, 36));
-            ImGui.TextColored(Theme.LabelColorDim, "Description");
-            ImGui.SetCursorScreenPos(p + new Vector2(12, 52));
-            using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
-            {
-                var desc = h.Description ?? "";
-                if (ImGui.InputTextMultiline($"##hdesc{i}", ref desc, 300, new Vector2(w - 24, 40))) h.Description = desc;
-            }
+                ImGui.TextColored(Theme.LabelColorDim, "Title");
+                ImGui.SameLine();
+                ImGui.SetNextItemWidth(w - 100 * ImGuiHelpers.GlobalScale);
+                using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+                {
+                    var title = h.Title ?? "";
+                    if (ImGui.InputText($"##htitle{i}", ref title, 50)) h.Title = title;
+                }
 
-            ImGui.EndGroup();
-            ImGui.SetCursorScreenPos(p + new Vector2(0, 108));
+                ImGui.SameLine();
+                using (ImRaii.PushColor(ImGuiCol.Button, Theme.Error with { W = 0.3f })
+                    .Push(ImGuiCol.Text, Theme.Error))
+                {
+                    if (ImGui.Button($"X##h{i}", new Vector2(24, 24) * ImGuiHelpers.GlobalScale)) { edit.RemoveHook(i); hremoved = true; }
+                }
+
+                if (!hremoved)
+                {
+                    ImGui.SetCursorScreenPos(p + new Vector2(12, 36) * ImGuiHelpers.GlobalScale);
+                    ImGui.TextColored(Theme.LabelColorDim, "Description");
+                    ImGui.SetCursorScreenPos(p + new Vector2(12, 52) * ImGuiHelpers.GlobalScale);
+                    using (ImRaii.PushColor(ImGuiCol.FrameBg, Theme.ButtonBg))
+                    {
+                        var desc = h.Description ?? "";
+                        if (ImGui.InputTextMultiline($"##hdesc{i}", ref desc, 300, new Vector2(w - 24 * ImGuiHelpers.GlobalScale, 40 * ImGuiHelpers.GlobalScale))) h.Description = desc;
+                    }
+                }
+            }
+            ImGui.SetCursorScreenPos(p + new Vector2(0, 108 * ImGuiHelpers.GlobalScale));
+            if (hremoved) continue;
         }
 
         UI.Space();
@@ -906,7 +925,7 @@ public static class ProfileEditor
             using (ImRaii.PushColor(ImGuiCol.Button, Theme.ButtonBg)
                 .Push(ImGuiCol.Text, Theme.Success))
             {
-                if (ImGui.Button("+ Add Hook", new Vector2(100, 26))) edit.AddHook();
+                if (ImGui.Button("+ Add Hook", new Vector2(100, 26) * ImGuiHelpers.GlobalScale)) edit.AddHook();
             }
         }
     }

@@ -3,6 +3,7 @@ namespace Glance.UI.Windows;
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
 using Dalamud.Interface.Textures;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
@@ -14,9 +15,9 @@ using System.Numerics;
 
 public sealed class GlanceWindow : Window
 {
-    const float Width = 180f;
-    const float GlanceBoxSize = 28f;
-    const float GlanceSpacing = 4f;
+    static float Width => 180f * ImGuiHelpers.GlobalScale;
+    static float GlanceBoxSize => 28f * ImGuiHelpers.GlobalScale;
+    static float GlanceSpacing => 4f * ImGuiHelpers.GlobalScale;
 
     string? _name, _world, _profileId;
     ProfileData? _profile;
@@ -69,7 +70,7 @@ public sealed class GlanceWindow : Window
         _alphaScope = ImRaii.PushStyle(ImGuiStyleVar.Alpha, _alpha);
 
         var vp = ImGui.GetMainViewport();
-        ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + vp.WorkSize.X - Width - 24, vp.WorkPos.Y + 80), ImGuiCond.FirstUseEver);
+        ImGui.SetNextWindowPos(new Vector2(vp.WorkPos.X + vp.WorkSize.X - Width - 24 * ImGuiHelpers.GlobalScale, vp.WorkPos.Y + 80 * ImGuiHelpers.GlobalScale), ImGuiCond.FirstUseEver);
     }
 
     public override void PostDraw()
@@ -113,16 +114,17 @@ public sealed class GlanceWindow : Window
         if (!string.IsNullOrEmpty(_profile?.Description))
         {
             var desc = _profile.Description;
-            ImGui.SetWindowFontScale(Theme.SmallFont);
-            if (ImGui.CalcTextSize(desc).X > w)
+            using (Globals.Fonts.Small.Push())
             {
-                while (desc.Length > 3 && ImGui.CalcTextSize(desc + "…").X > w)
-                    desc = desc[..^1];
-                desc += "…";
+                if (ImGui.CalcTextSize(desc).X > w)
+                {
+                    while (desc.Length > 3 && ImGui.CalcTextSize(desc + "…").X > w)
+                        desc = desc[..^1];
+                    desc += "…";
+                }
+                ImGui.SetCursorPosX((w - ImGui.CalcTextSize(desc).X) / 2 + Theme.Padding);
+                ImGui.TextColored(Theme.TextMuted, desc);
             }
-            ImGui.SetCursorPosX((w - ImGui.CalcTextSize(desc).X) / 2 + Theme.Padding);
-            ImGui.TextColored(Theme.TextMuted, desc);
-            ImGui.SetWindowFontScale(1f);
         }
     }
 
@@ -155,7 +157,7 @@ public sealed class GlanceWindow : Window
                     var tex = Globals.TextureProvider.GetFromGameIcon(new GameIconLookup(g.IconId));
                     if (tex.TryGetWrap(out var wrap, out _))
                     {
-                        var pad = 2f;
+                        var pad = 2f * ImGuiHelpers.GlobalScale;
                         dl.AddImage(wrap.Handle, pos + new Vector2(pad), max - new Vector2(pad));
                     }
                 }
@@ -174,9 +176,8 @@ public sealed class GlanceWindow : Window
                     if (!string.IsNullOrEmpty(g.Value))
                     {
                         ImGui.Spacing();
-                        ImGui.PushTextWrapPos(220);
-                        ImGui.TextColored(Theme.ValueColor, g.Value);
-                        ImGui.PopTextWrapPos();
+                        using (ImRaii.TextWrapPos(220 * ImGuiHelpers.GlobalScale))
+                            ImGui.TextColored(Theme.ValueColor, g.Value);
                     }
                 }
             }
@@ -198,9 +199,9 @@ public sealed class GlanceWindow : Window
     void DrawToolbar()
     {
         var w = ImGui.GetContentRegionAvail().X;
-        var btnSize = new Vector2(22);
+        var btnSize = new Vector2(22) * ImGuiHelpers.GlobalScale;
         var btnCount = 5;
-        var spacing = 6f;
+        var spacing = 6f * ImGuiHelpers.GlobalScale;
         var totalW = btnCount * btnSize.X + (btnCount - 1) * spacing;
         var startX = (w - totalW) / 2;
 

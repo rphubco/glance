@@ -25,12 +25,24 @@ public sealed unsafe class NameplateService : IDisposable
 
         foreach (var handler in handlers)
         {
-            if (handler.PlayerCharacter is not { } pc) continue;
+            var np = (AddonNamePlate.NamePlateObject*)handler.NamePlateObjectAddress;
+            var iconNode = np != null ? np->NameIcon : null;
+
+            if (handler.PlayerCharacter is not { } pc)
+            {
+                if (iconNode != null) ResetColor(iconNode);
+                continue;
+            }
 
             var iconId = handler.NameIconId;
             var isRoleplaying = iconId == RpStatusIcon || iconId == RpStatusIcon1;
             var name = pc.Name.TextValue;
-            var world = pc.HomeWorld.Value.Name.ToString();
+            var world = pc.HomeWorld.ValueNullable?.Name.ToString();
+            if (string.IsNullOrEmpty(world))
+            {
+                if (iconNode != null) ResetColor(iconNode);
+                continue;
+            }
             var profile = Globals.Cache.GetProfile(name, world);
 
             if (isRoleplaying)
@@ -59,8 +71,6 @@ public sealed unsafe class NameplateService : IDisposable
                 }
             }
 
-            var np = (AddonNamePlate.NamePlateObject*)handler.NamePlateObjectAddress;
-            var iconNode = np != null ? np->NameIcon : null;
             if (iconNode == null) continue;
 
             var shouldTint = config.NameplateTintEnabled

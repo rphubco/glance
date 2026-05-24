@@ -2,6 +2,7 @@ namespace Glance.UI.Tabs;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Core;
 using Glance.Models;
@@ -18,9 +19,9 @@ public static class CachedProfilesTab
     static DateTime _lastRefresh;
     static string _search = "";
 
-    const float CardHeight = 62f;
-    const float ImageSize = 46f;
-    const float CardSpacing = 4f;
+    static float CardHeight => 62f * ImGuiHelpers.GlobalScale;
+    static float ImageSize => 46f * ImGuiHelpers.GlobalScale;
+    static float CardSpacing => 4f * ImGuiHelpers.GlobalScale;
 
     public static void Draw()
     {
@@ -81,9 +82,8 @@ public static class CachedProfilesTab
         using (Globals.Fonts.Header.Push())
             ImGui.TextColored(Theme.Primary, "Cached Profiles");
 
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-        ImGui.TextColored(Theme.TextMuted, $"{_entries?.Count ?? 0} profile{((_entries?.Count ?? 0) != 1 ? "s" : "")} cached locally");
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(Theme.TextMuted, $"{_entries?.Count ?? 0} profile{((_entries?.Count ?? 0) != 1 ? "s" : "")} cached locally");
     }
 
     static void DrawSearchBar()
@@ -109,12 +109,12 @@ public static class CachedProfilesTab
         dl.AddRectFilled(startPos, cardMax, Theme.Col(bgCol), 6);
 
         if (isHovered)
-            dl.AddRectFilled(startPos, startPos + new Vector2(3, CardHeight), Theme.Col(Theme.GoldColor), 2, ImDrawFlags.RoundCornersLeft);
+            dl.AddRectFilled(startPos, startPos + new Vector2(3 * ImGuiHelpers.GlobalScale, CardHeight), Theme.Col(Theme.GoldColor), 2, ImDrawFlags.RoundCornersLeft);
 
         var borderCol = isHovered ? Theme.GoldColor with { W = 0.6f } : Theme.FrameBorder with { W = 0.3f };
         dl.AddRect(startPos, cardMax, Theme.Col(borderCol), 6);
 
-        var imgPos = startPos + new Vector2(8, (CardHeight - ImageSize) / 2);
+        var imgPos = startPos + new Vector2(8 * ImGuiHelpers.GlobalScale, (CardHeight - ImageSize) / 2);
         var imgMax = imgPos + new Vector2(ImageSize);
 
         var tex = Globals.Images.Get(e.Image);
@@ -139,10 +139,10 @@ public static class CachedProfilesTab
         }
         dl.AddRect(imgPos, imgMax, Theme.Col(Theme.FrameBorder with { W = 0.4f }), 4);
 
-        var textX = imgMax.X + 10;
-        var maxTextW = w - (textX - startPos.X) - 12;
+        var textX = imgMax.X + 10 * ImGuiHelpers.GlobalScale;
+        var maxTextW = w - (textX - startPos.X) - 12 * ImGuiHelpers.GlobalScale;
 
-        ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + 8));
+        ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + 8 * ImGuiHelpers.GlobalScale));
         using (Globals.Fonts.Header.Push())
         {
             var displayName = e.DisplayName ?? e.Name;
@@ -151,23 +151,25 @@ public static class CachedProfilesTab
             ImGui.TextColored(Theme.NameColor, displayName);
         }
 
-        ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + 28));
-        ImGui.SetWindowFontScale(Theme.SmallFont);
-
+        ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + 28 * ImGuiHelpers.GlobalScale));
         using (ImRaii.PushFont(UiBuilder.IconFont))
+        {
+            ImGui.SetWindowFontScale(0.85f);
             ImGui.TextColored(Theme.WorldColor with { W = 0.7f }, FontAwesomeIcon.Globe.ToIconString());
-        ImGui.SameLine(0, 4);
-        ImGui.TextColored(Theme.WorldColor, $"{e.Name} @ {e.World}");
-
-        ImGui.SetWindowFontScale(1f);
+            ImGui.SetWindowFontScale(1f);
+        }
+        ImGui.SameLine(0, 4 * ImGuiHelpers.GlobalScale);
+        using (Globals.Fonts.Small.Push())
+            ImGui.TextColored(Theme.WorldColor, $"{e.Name} @ {e.World}");
 
         if (!string.IsNullOrEmpty(e.Description))
         {
-            ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + CardHeight - 18));
-            ImGui.SetWindowFontScale(Theme.SmallFont);
-            var desc = e.Description.Length > 40 ? e.Description[..38] + "…" : e.Description;
-            ImGui.TextColored(Theme.TextMuted, desc);
-            ImGui.SetWindowFontScale(1f);
+            ImGui.SetCursorScreenPos(new Vector2(textX, startPos.Y + CardHeight - 18 * ImGuiHelpers.GlobalScale));
+            using (Globals.Fonts.Small.Push())
+            {
+                var desc = e.Description.Length > 40 ? e.Description[..38] + "…" : e.Description;
+                ImGui.TextColored(Theme.TextMuted, desc);
+            }
         }
 
         ImGui.SetCursorScreenPos(startPos);
@@ -200,7 +202,7 @@ public static class CachedProfilesTab
             ImGui.SetWindowFontScale(1f);
         }
 
-        UI.Space(40);
+        UI.Space(40 * ImGuiHelpers.GlobalScale);
         Theme.Centered(title ?? "No Cached Profiles", Theme.LabelColor);
         UI.Space(UI.Xs);
         Theme.Centered(sub ?? "Profiles you view will be saved here", Theme.TextMuted);

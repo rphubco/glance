@@ -1,6 +1,7 @@
 namespace Glance.UI.Windows;
 
 using Dalamud.Bindings.ImGui;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Windowing;
 using Glance.Utils;
 using Glance.Core;
@@ -16,12 +17,12 @@ public sealed class NearbyWindow : Window
 
     public NearbyWindow() : base("Nearby Roleplayers##RPHubDetached", Flags)
     {
-        Size = new Vector2(340, 480);
+        Size = new Vector2(340, 480) * ImGuiHelpers.GlobalScale;
         SizeCondition = ImGuiCond.FirstUseEver;
         SizeConstraints = new WindowSizeConstraints
         {
-            MinimumSize = new Vector2(300, 300),
-            MaximumSize = new Vector2(500, 800)
+            MinimumSize = new Vector2(300, 300) * ImGuiHelpers.GlobalScale,
+            MaximumSize = new Vector2(500, 800) * ImGuiHelpers.GlobalScale
         };
     }
 

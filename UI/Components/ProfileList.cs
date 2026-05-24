@@ -2,6 +2,7 @@ namespace Glance.UI.Components;
 
 using Dalamud.Bindings.ImGui;
 using Dalamud.Interface;
+using Dalamud.Interface.Utility;
 using Dalamud.Interface.Utility.Raii;
 using Glance.Utils;
 using Glance.Core;
@@ -43,18 +44,20 @@ public static class ProfileList
         var dl = ImGui.GetWindowDrawList();
         var pos = ImGui.GetCursorScreenPos();
         var w = ImGui.GetContentRegionAvail().X;
-        const float h = 56f, avatar = 40f, pad = 8f;
+        var h = 56f * ImGuiHelpers.GlobalScale;
+        var avatar = 40f * ImGuiHelpers.GlobalScale;
+        var pad = 8f * ImGuiHelpers.GlobalScale;
         var max = pos + new Vector2(w, h);
 
-        ImGui.PushID(c.Id);
+        using var _id = ImRaii.PushId(c.Id);
 
         dl.AddRectFilled(pos, max, Theme.Col((active ? Theme.ButtonActive : Theme.ButtonBg) with { W = 0.6f }), 6f);
         dl.AddRect(pos, max, Theme.Col((active ? Theme.GoldColor : Theme.FrameBorderInner) with { W = active ? 0.8f : 0.5f }), 6f);
 
         if (active)
-            dl.AddRectFilled(new Vector2(pos.X, pos.Y + 8), new Vector2(pos.X + 3, max.Y - 8), Theme.Col(Theme.GoldColor), 2f);
+            dl.AddRectFilled(new Vector2(pos.X, pos.Y + 8 * ImGuiHelpers.GlobalScale), new Vector2(pos.X + 3 * ImGuiHelpers.GlobalScale, max.Y - 8 * ImGuiHelpers.GlobalScale), Theme.Col(Theme.GoldColor), 2f);
 
-        var ap = new Vector2(pos.X + pad + (active ? 6 : 0), pos.Y + (h - avatar) / 2);
+        var ap = new Vector2(pos.X + pad + (active ? 6 * ImGuiHelpers.GlobalScale : 0), pos.Y + (h - avatar) / 2);
         var am = ap + new Vector2(avatar, avatar);
 
         if (Globals.Images.Get(c.Avatar) is { } tex)
@@ -80,12 +83,11 @@ public static class ProfileList
         dl.AddRect(ap, am, Theme.Col(Theme.FrameBorderInner), 4f);
 
         var tx = am.X + pad;
-        dl.AddText(new Vector2(tx, pos.Y + h / 2 - ImGui.GetTextLineHeight() - 2), Theme.Col(active ? Theme.GoldColor : Theme.ValueColor), c.Name);
+        dl.AddText(new Vector2(tx, pos.Y + h / 2 - ImGui.GetTextLineHeight() - 2 * ImGuiHelpers.GlobalScale), Theme.Col(active ? Theme.GoldColor : Theme.ValueColor), c.Name);
 
-        ImGui.SetWindowFontScale(Theme.SmallFont);
         var status = active ? "Active Profile" : (_processing == c.Id ? "Switching..." : "Click to activate");
-        dl.AddText(new Vector2(tx, pos.Y + h / 2 + 2), Theme.Col(active ? Theme.Primary : Theme.TextMuted), status);
-        ImGui.SetWindowFontScale(1f);
+        using (Globals.Fonts.Small.Push())
+            dl.AddText(new Vector2(tx, pos.Y + h / 2 + 2 * ImGuiHelpers.GlobalScale), Theme.Col(active ? Theme.Primary : Theme.TextMuted), status);
 
         if (active)
         {
@@ -123,27 +125,26 @@ public static class ProfileList
         }
 
         ImGui.SetCursorScreenPos(new Vector2(pos.X, max.Y));
-        ImGui.PopID();
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
     }
 
     static void Empty()
     {
-        UI.Space(20);
+        UI.Space(20 * ImGuiHelpers.GlobalScale);
         Centered(FontAwesomeIcon.UserPlus, null, Theme.LabelColorDim, 2f);
-        UI.Space(12);
+        UI.Space(12 * ImGuiHelpers.GlobalScale);
         Theme.Centered("No profiles yet", Theme.LabelColor);
-        UI.Space(4);
+        UI.Space(4 * ImGuiHelpers.GlobalScale);
         Theme.Centered("Create your first character profile", Theme.TextMuted);
-        UI.Space(16);
+        UI.Space(16 * ImGuiHelpers.GlobalScale);
 
         var w = ImGui.GetContentRegionAvail().X;
-        ImGui.SetCursorPosX((w - 140) / 2);
+        ImGui.SetCursorPosX((w - 140 * ImGuiHelpers.GlobalScale) / 2);
         using (ImRaii.PushColor(ImGuiCol.Button, Theme.PrimaryButtonBg)
             .Push(ImGuiCol.ButtonHovered, Theme.PrimaryButtonHover)
             .Push(ImGuiCol.Text, Theme.PrimaryButtonText))
         {
-            if (ImGui.Button("Create Profile", new Vector2(140, 32))) { ProfileEditor.OpenForCreate(); }
+            if (ImGui.Button("Create Profile", new Vector2(140, 32) * ImGuiHelpers.GlobalScale)) { ProfileEditor.OpenForCreate(); }
         }
     }
 
@@ -158,7 +159,7 @@ public static class ProfileList
             ImGui.TextColored(col, ic);
             ImGui.SetWindowFontScale(1f);
         }
-        if (text != null) { UI.Space(8); Theme.Centered(text, col); }
+        if (text != null) { UI.Space(UI.Sm); Theme.Centered(text, col); }
     }
 
     static async Task SelectAsync(string id)
@@ -236,7 +237,7 @@ public static class ProfileList
 
     static void ErrorState(string message)
     {
-        UI.Space(24);
+        UI.Space(24 * ImGuiHelpers.GlobalScale);
         var title = "Sync Failed";
         var subMessage = message;
         var isNotFound = message.Contains("NOT_FOUND");
@@ -263,15 +264,14 @@ public static class ProfileList
         }
 
         Centered(FontAwesomeIcon.ExclamationTriangle, title, Theme.LabelColor, 2f);
-        UI.Space(12);
+        UI.Space(12 * ImGuiHelpers.GlobalScale);
 
-        ImGui.PushTextWrapPos(ImGui.GetCursorPos().X + ImGui.GetContentRegionAvail().X - 20f);
-        Theme.Centered(subMessage, Theme.TextMuted);
-        ImGui.PopTextWrapPos();
+        using (ImRaii.TextWrapPos(ImGui.GetCursorPos().X + ImGui.GetContentRegionAvail().X - 20f * ImGuiHelpers.GlobalScale))
+            Theme.Centered(subMessage, Theme.TextMuted);
 
-        UI.Space(24);
+        UI.Space(24 * ImGuiHelpers.GlobalScale);
         var w = ImGui.GetContentRegionAvail().X;
-        var btnW = 160f;
+        var btnW = 160f * ImGuiHelpers.GlobalScale;
         ImGui.SetCursorPosX((w - btnW) / 2);
 
         var fetching = Globals.Auth.IsFetching;
@@ -281,7 +281,7 @@ public static class ProfileList
         {
             var btnText = fetching ? "Checking..." : "Check Again";
 
-            if (ImGui.Button(btnText, new Vector2(btnW, 36)))
+            if (ImGui.Button(btnText, new Vector2(btnW, 36 * ImGuiHelpers.GlobalScale)))
             {
                 _ = Globals.Auth.RefreshBeaconTokenAsync();
                 Sound.PlayConfirm();
